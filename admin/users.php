@@ -123,6 +123,9 @@ $pageTitle = "Manage Users | Elliana's Boutique Admin";
                     <a href="dashboard.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg hover:bg-gray-800 hover:text-white transition-colors">
                         <i class="fa-solid fa-house mr-3"></i> Dashboard
                     </a>
+                    <a href="analytics.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fa-solid fa-chart-pie mr-3"></i> Analytics
+                    </a>
                     <a href="products.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg hover:bg-gray-800 hover:text-white transition-colors">
                         <i class="fa-solid fa-shirt mr-3"></i> Products
                     </a>
