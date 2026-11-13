@@ -141,6 +141,7 @@ $pageTitle = "Manage Users | Elliana's Boutique Admin";
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+                                    <th class="px-6 py-3">Account ID</th>
                                     <th class="px-6 py-3">Full Name</th>
                                     <th class="px-6 py-3">Email Address</th>
                                     <th class="px-6 py-3">Role</th>
@@ -152,6 +153,9 @@ $pageTitle = "Manage Users | Elliana's Boutique Admin";
                                 <?php if (!empty($users)): ?>
                                     <?php foreach ($users as $u): ?>
                                     <tr class="hover:bg-gray-50/50 transition-colors">
+                                        <td class="px-6 py-4 font-mono font-bold text-xs text-yellow-700">
+                                            <?php echo 'EB-USR-' . str_pad($u['id'], 4, '0', STR_PAD_LEFT); ?>
+                                        </td>
                                         <td class="px-6 py-4 font-medium text-gray-900"><?php echo htmlspecialchars($u['fullname']); ?></td>
                                         <td class="px-6 py-4 text-gray-500"><?php echo htmlspecialchars($u['email']); ?></td>
                                         <td class="px-6 py-4">
@@ -176,7 +180,7 @@ $pageTitle = "Manage Users | Elliana's Boutique Admin";
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="5" class="px-6 py-8 text-center text-gray-500">No users found.</td>
+                                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">No users found.</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
