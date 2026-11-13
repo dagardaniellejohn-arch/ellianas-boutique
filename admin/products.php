@@ -15,9 +15,18 @@ $error = '';
 // Handle Add Product Form Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
     $name = trim($_POST['name']);
-    $category = trim($_POST['category']);
     $price = floatval($_POST['price']);
     $description = trim($_POST['description']);
+    
+    // Handle category logic (dropdown vs custom input)
+    $selected_category = $_POST['category'] ?? '';
+    $custom_category = trim($_POST['custom_category'] ?? '');
+    $category = ($selected_category === 'Custom') ? $custom_category : $selected_category;
+
+    // Handle size logic (dropdown vs custom input)
+    $selected_size = $_POST['size'] ?? '';
+    $custom_size = trim($_POST['custom_size'] ?? '');
+    $size = ($selected_size === 'Custom') ? $custom_size : $selected_size;
     
     if (empty($name) || empty($category) || empty($price)) {
         $error = "Please fill in all required product fields.";
@@ -47,9 +56,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
                 }
             }
 
-            // 3. Insert into Database with is_available = 1
-            $insertStmt = $pdo->prepare("INSERT INTO products (product_code, name, category, price, image, description, is_available) VALUES (?, ?, ?, ?, ?, ?, 1)");
-            $insertStmt->execute([$product_code, $name, $category, $price, $imageName, $description]);
+            // 3. Insert into Database with category, size, and is_available = 1
+            $insertStmt = $pdo->prepare("INSERT INTO products (product_code, name, category, price, size, image, description, is_available) VALUES (?, ?, ?, ?, ?, ?, ?, 1)");
+            $insertStmt->execute([$product_code, $name, $category, $price, $size, $imageName, $description]);
             
             $success = "Product successfully added with code " . $product_code . "!";
         } catch (PDOException $e) {
@@ -155,27 +164,66 @@ $pageTitle = "Product Management | Elliana's Boutique";
                     <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                         <i class="fa-solid fa-plus-circle text-yellow-600"></i> Add New Baby Product (Auto Code: FG-XXX)
                     </h2>
-                    <form action="products.php" method="POST" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <form action="products.php" method="POST" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
                             <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Product Name</label>
                             <input type="text" name="name" required class="w-full px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-yellow-500 focus:outline-none" placeholder="e.g. Organic Frog Romper">
                         </div>
+
+                        <!-- Category Preset Dropdown -->
                         <div>
-                            <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Category</label>
-                            <input type="text" name="category" required class="w-full px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-yellow-500 focus:outline-none" placeholder="e.g. Rompers, Outerwear">
+                            <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Product Category</label>
+                            <select name="category" id="category-select" onchange="toggleCustomCategory(this.value)" class="w-full px-4 py-2 border rounded-xl text-sm bg-white focus:ring-2 focus:ring-yellow-500 focus:outline-none" required>
+                                <option value="" disabled selected>Select category...</option>
+                                <option value="Rompers">Rompers</option>
+                                <option value="Outerwear">Outerwear</option>
+                                <option value="Bodysuits">Bodysuits</option>
+                                <option value="Sleep & Play">Sleep & Play</option>
+                                <option value="Dresses">Dresses</option>
+                                <option value="Sets">Sets</option>
+                                <option value="Custom">Custom Category...</option>
+                            </select>
                         </div>
+
+                        <!-- Custom Category Input (Hidden by Default) -->
+                        <div id="custom-category-container" class="md:col-span-2 hidden">
+                            <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Enter Custom Category</label>
+                            <input type="text" name="custom_category" id="custom-category-input" class="w-full px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-yellow-500 focus:outline-none" placeholder="e.g. Accessories, Shoes">
+                        </div>
+
                         <div>
                             <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Price (PHP)</label>
                             <input type="number" step="0.01" name="price" required class="w-full px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-yellow-500 focus:outline-none" placeholder="450.00">
                         </div>
                         
+                        <!-- Size Selection Field -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Apparel Size</label>
+                            <select name="size" id="size-select" onchange="toggleCustomSize(this.value)" class="w-full px-4 py-2 border rounded-xl text-sm bg-white focus:ring-2 focus:ring-yellow-500 focus:outline-none">
+                                <option value="Newborn">Newborn</option>
+                                <option value="0-3 Months" selected>0-3 Months</option>
+                                <option value="3-6 Months">3-6 Months</option>
+                                <option value="6-12 Months">6-12 Months</option>
+                                <option value="12-18 Months">12-18 Months</option>
+                                <option value="18-24 Months">18-24 Months</option>
+                                <option value="Toddler">Toddler</option>
+                                <option value="Custom">Custom Size...</option>
+                            </select>
+                        </div>
+
+                        <!-- Custom Size Input (Hidden by Default) -->
+                        <div id="custom-size-container" class="md:col-span-4 hidden">
+                            <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Enter Custom Size</label>
+                            <input type="text" name="custom_size" id="custom-size-input" class="w-full px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-yellow-500 focus:outline-none" placeholder="e.g. 2T - 3T">
+                        </div>
+                        
                         <!-- Expanded Full-Width Description Field -->
-                        <div class="md:col-span-3">
+                        <div class="md:col-span-4">
                             <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Description</label>
                             <textarea name="description" rows="3" class="w-full px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-yellow-500 focus:outline-none resize-none" placeholder="Enter comfortable organic apparel details, sizing notes, or washing instructions..."></textarea>
                         </div>
 
-                        <div class="md:col-span-3">
+                        <div class="md:col-span-4">
                             <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Product Image</label>
                             <label id="dropzone-label" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-2xl cursor-pointer bg-gray-50 hover:bg-yellow-50/50 hover:border-yellow-500 transition-all group">
                                 <div class="flex flex-col items-center justify-center pt-5 pb-6 px-4 text-center">
@@ -189,7 +237,7 @@ $pageTitle = "Product Management | Elliana's Boutique";
                             </label>
                         </div>
 
-                        <!-- JavaScript to show selected file name -->
+                        <!-- JavaScript for Toggles & Handlers -->
                         <script>
                         function updateFileName(input) {
                             const display = document.getElementById('file-name-display');
@@ -201,14 +249,42 @@ $pageTitle = "Product Management | Elliana's Boutique";
                                 display.classList.remove('text-yellow-700', 'font-bold');
                             }
                         }
+
+                        function toggleCustomCategory(val) {
+                            const container = document.getElementById('custom-category-container');
+                            const customInput = document.getElementById('custom-category-input');
+                            if (val === 'Custom') {
+                                container.classList.remove('hidden');
+                                customInput.setAttribute('required', 'required');
+                            } else {
+                                container.classList.add('hidden');
+                                customInput.removeAttribute('required');
+                                customInput.value = '';
+                            }
+                        }
+
+                        function toggleCustomSize(val) {
+                            const container = document.getElementById('custom-size-container');
+                            const customInput = document.getElementById('custom-size-input');
+                            if (val === 'Custom') {
+                                container.classList.remove('hidden');
+                                customInput.setAttribute('required', 'required');
+                            } else {
+                                container.classList.add('hidden');
+                                customInput.removeAttribute('required');
+                                customInput.value = '';
+                            }
+                        }
                         </script>
-                        <div class="md:col-span-3 flex justify-end">
+
+                        <div class="md:col-span-4 flex justify-end">
                             <button type="submit" name="add_product" class="px-6 py-2.5 bg-yellow-500 text-white font-semibold rounded-xl text-sm hover:bg-yellow-600 transition-colors shadow-sm">
                                 <i class="fa-solid fa-save mr-1.5"></i> Save & Generate Product Code
                             </button>
                         </div>
                     </form>
                 </div>
+
                 <!-- Existing Products Inventory Table -->
                 <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
                     <div class="p-6 border-b border-gray-200">
@@ -221,6 +297,7 @@ $pageTitle = "Product Management | Elliana's Boutique";
                                     <th class="py-3 px-6">Image / Code</th>
                                     <th class="py-3 px-6">Product Name</th>
                                     <th class="py-3 px-6">Category</th>
+                                    <th class="py-3 px-6">Size</th>
                                     <th class="py-3 px-6">Price</th>
                                     <th class="py-3 px-6">Status Flag</th>
                                     <th class="py-3 px-6 text-right">Actions</th>
@@ -246,7 +323,16 @@ $pageTitle = "Product Management | Elliana's Boutique";
                                                 <span class="font-mono text-xs font-bold text-yellow-700 bg-yellow-50 px-2.5 py-1 rounded-md"><?php echo $pcode; ?></span>
                                                 <div class="font-bold text-gray-900 mt-1"><?php echo htmlspecialchars($prod['name']); ?></div>
                                             </td>
-                                            <td class="py-4 px-6 text-gray-600"><?php echo htmlspecialchars($prod['category']); ?></td>
+                                            <td class="py-4 px-6">
+                                                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-yellow-50 text-yellow-800 border border-yellow-200">
+                                                    <?php echo htmlspecialchars($prod['category']); ?>
+                                                </span>
+                                            </td>
+                                            <td class="py-4 px-6">
+                                                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-800">
+                                                    <?php echo htmlspecialchars($prod['size'] ?? '0-3 Months'); ?>
+                                                </span>
+                                            </td>
                                             <td class="py-4 px-6 font-extrabold text-gray-900"><?php echo formatPrice($prod['price']); ?></td>
                                             <td class="py-4 px-6">
                                                 <?php if ($is_purchased): ?>
@@ -268,7 +354,7 @@ $pageTitle = "Product Management | Elliana's Boutique";
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="6" class="py-8 text-center text-gray-500">No products found in inventory. Use the form above to add one!</td>
+                                        <td colspan="7" class="py-8 text-center text-gray-500">No products found in inventory. Use the form above to add one!</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
