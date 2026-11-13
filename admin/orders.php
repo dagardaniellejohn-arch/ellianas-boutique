@@ -9,13 +9,19 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     redirect('../login.php');
 }
 
-// Fetch all orders with user details if available
+// Fetch all orders with user details and associated order items / product IDs
 try {
     $stmt = $pdo->query("
-        SELECT orders.*, users.fullname, users.email 
-        FROM orders 
-        LEFT JOIN users ON orders.user_id = users.id 
-        ORDER BY orders.created_at DESC
+        SELECT o.*, u.fullname, u.email,
+               GROUP_CONCAT(p.id) as product_ids,
+               GROUP_CONCAT(p.name) as product_names,
+               GROUP_CONCAT(oi.quantity) as product_quantities
+        FROM orders o
+        LEFT JOIN users u ON o.user_id = u.id
+        LEFT JOIN order_items oi ON o.id = oi.order_id
+        LEFT JOIN products p ON oi.product_id = p.id
+        GROUP BY o.id
+        ORDER BY o.created_at DESC
     ");
     $orders = $stmt->fetchAll();
 } catch (PDOException $e) {
@@ -101,7 +107,8 @@ $pageTitle = "Manage Orders | Elliana's Boutique Admin";
                                 <tr class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
                                     <th class="px-6 py-3">Order ID</th>
                                     <th class="px-6 py-3">Customer</th>
-                                    <th class="px-6 py-3">Shipping & Payment</th> <!-- Added Column Header -->
+                                    <th class="px-6 py-3">Purchased Products</th>
+                                    <th class="px-6 py-3">Shipping & Payment</th>
                                     <th class="px-6 py-3">Total Amount</th>
                                     <th class="px-6 py-3">Status</th>
                                     <th class="px-6 py-3">Date Placed</th>
@@ -111,28 +118,46 @@ $pageTitle = "Manage Orders | Elliana's Boutique Admin";
                                 <?php if (!empty($orders)): ?>
                                     <?php foreach ($orders as $ord): ?>
                                     <tr class="hover:bg-gray-50/50 transition-colors">
-                                        <td class="px-6 py-4 font-bold text-gray-900">#<?php echo $ord['id']; ?></td>
-                                        <td class="px-6 py-4">
+                                        <td class="px-6 py-4 font-bold text-gray-900 align-top">#<?php echo $ord['id']; ?></td>
+                                        <td class="px-6 py-4 align-top">
                                             <div class="font-medium text-gray-900"><?php echo htmlspecialchars($ord['fullname'] ?? 'Guest Customer'); ?></div>
                                             <div class="text-xs text-gray-500"><?php echo htmlspecialchars($ord['email'] ?? ''); ?></div>
                                         </td>
-                                        <!-- Added Courier & Payment Details Row Data -->
-                                        <td class="px-6 py-4">
+                                        <!-- Product ID FG-019 & Names Column (Quantities Removed) -->
+                                        <td class="px-6 py-4 align-top">
+                                            <?php if (!empty($ord['product_ids'])): ?>
+                                                <?php 
+                                                    $ids = explode(',', $ord['product_ids']);
+                                                    $names = explode(',', $ord['product_names']);
+                                                ?>
+                                                <div class="space-y-1">
+                                                    <?php for ($i = 0; $i < count($ids); $i++): ?>
+                                                        <div class="text-xs">
+                                                            <span class="font-mono font-bold text-yellow-700 bg-yellow-50 border border-yellow-200 px-1.5 py-0.5 rounded">FG-019</span>
+                                                            <span class="font-medium text-gray-800 ml-1"><?php echo htmlspecialchars($names[$i] ?? 'Product'); ?></span>
+                                                        </div>
+                                                    <?php endfor; ?>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="text-xs text-gray-400 italic">No items recorded</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="px-6 py-4 align-top">
                                             <div class="font-medium text-gray-900"><?php echo htmlspecialchars($ord['shipping_method'] ?? 'Standard Delivery'); ?></div>
                                             <div class="text-xs text-gray-500"><?php echo htmlspecialchars($ord['payment_method'] ?? 'COD'); ?></div>
                                         </td>
-                                        <td class="px-6 py-4 font-extrabold text-yellow-600"><?php echo formatPrice($ord['total_amount']); ?></td>
-                                        <td class="px-6 py-4">
+                                        <td class="px-6 py-4 font-extrabold text-yellow-600 align-top"><?php echo formatPrice($ord['total_amount']); ?></td>
+                                        <td class="px-6 py-4 align-top">
                                             <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
                                                 <?php echo htmlspecialchars($ord['status']); ?>
                                             </span>
                                         </td>
-                                        <td class="px-6 py-4 text-gray-500 text-xs"><?php echo htmlspecialchars($ord['created_at']); ?></td>
+                                        <td class="px-6 py-4 text-gray-500 text-xs align-top"><?php echo htmlspecialchars($ord['created_at']); ?></td>
                                     </tr>
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">No orders have been placed yet.</td>
+                                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">No orders have been placed yet.</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
