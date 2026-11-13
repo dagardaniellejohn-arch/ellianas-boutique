@@ -9,6 +9,12 @@ if (!isset($_SESSION['user_id'])) {
     redirect('login.php');
 }
 
+// RESTRICT ADMIN FROM PURCHASING
+if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+    $_SESSION['error'] = "Administrators cannot place orders or purchase items from the store front.";
+    redirect('admin/dashboard.php');
+}
+
 // If cart is empty, redirect back to shop
 if (empty($_SESSION['cart'])) {
     redirect('shop.php');
@@ -18,13 +24,13 @@ $error = '';
 $order_success = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $fullname = sanitize($_POST['fullname']);
-    $email = sanitize($_POST['email']);
-    $address = sanitize($_POST['address']);
-    $city = sanitize($_POST['city']);
-    $zip = sanitize($_POST['zip']);
-    $shipping_method = sanitize($_POST['shipping_method']);
-    $payment_method = sanitize($_POST['payment_method']);
+    $fullname = sanitize($_POST['fullname'] ?? '');
+    $email = sanitize($_POST['email'] ?? '');
+    $address = sanitize($_POST['address'] ?? '');
+    $city = sanitize($_POST['city'] ?? '');
+    $zip = sanitize($_POST['zip'] ?? '');
+    $shipping_method = sanitize($_POST['shipping_method'] ?? 'Standard Shipping');
+    $payment_method = sanitize($_POST['payment_method'] ?? 'GCash');
 
     // Set shipping fee based on selection
     $shipping_fee = ($shipping_method === 'J&T Express') ? 150.00 : 80.00;
@@ -45,15 +51,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Begin transaction
             $pdo->beginTransaction();
 
-            // Insert into orders table with status set to 'Purchased'
+            // 1. Insert into orders table
             $stmt = $pdo->prepare("INSERT INTO orders (user_id, total_amount, shipping_method, shipping_fee, payment_method, status, created_at) VALUES (?, ?, ?, ?, ?, 'Purchased', NOW())");
             $stmt->execute([$user_id, $total_amount, $shipping_method, $shipping_fee, $payment_method]);
             $order_id = $pdo->lastInsertId();
 
-            // Insert each item into order_items table
+            // 2. Prepare statements for order items and marking package unavailable globally
             $itemStmt = $pdo->prepare("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)");
+            $availabilityStmt = $pdo->prepare("UPDATE products SET is_available = 0 WHERE id = ?");
+            
             foreach ($_SESSION['cart'] as $item) {
+                // Save order item record
                 $itemStmt->execute([$order_id, $item['id'], $item['quantity'], $item['price']]);
+                
+                // Globally lock the package bundle so it shows as sold out for everyone
+                $availabilityStmt->execute([$item['id']]);
             }
 
             // Commit transaction
@@ -136,13 +148,13 @@ include 'includes/header.php';
                     </div>
                 </div>
 
-                <!-- Shipping Options (J&T etc.) -->
+                <!-- Shipping Options -->
                 <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
                     <h2 class="text-lg font-bold text-gray-900">2. Choose Shipping Courier</h2>
                     <div class="space-y-3">
                         <label class="flex items-center justify-between p-4 border border-gray-200 rounded-xl cursor-pointer hover:border-yellow-500 transition-colors">
                             <div class="flex items-center space-x-3">
-                                <input type="radio" name="shipping_method" value="J&T Express" class="text-yellow-500 focus:ring-yellow-500">
+                                <input type="radio" name="shipping_method" value="J&T Express" checked class="text-yellow-500 focus:ring-yellow-500">
                                 <div>
                                     <p class="font-bold text-gray-900 text-sm">J&T Express Courier</p>
                                     <p class="text-xs text-gray-500">1-3 business days (Express tracking)</p>
@@ -157,9 +169,8 @@ include 'includes/header.php';
                 <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
                     <h2 class="text-lg font-bold text-gray-900">3. Select Payment Method</h2>
                     <div class="space-y-3">
-
                         <label class="flex items-center space-x-3 p-4 border border-gray-200 rounded-xl cursor-pointer hover:border-yellow-500 transition-colors">
-                            <input type="radio" name="payment_method" value="GCash" class="text-yellow-500 focus:ring-yellow-500">
+                            <input type="radio" name="payment_method" value="GCash" checked class="text-yellow-500 focus:ring-yellow-500">
                             <div>
                                 <p class="font-bold text-gray-900 text-sm">GCash E-Wallet</p>
                                 <p class="text-xs text-gray-500">Scan QR code or direct mobile wallet transfer</p>

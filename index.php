@@ -35,35 +35,22 @@ include 'includes/header.php';
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
         <?php if (!empty($products)): ?>
             <?php foreach ($products as $prod): ?>
-                <?php
-                // Check if the current logged-in user has already bought this product
-                $has_purchased = false;
-                if (isset($_SESSION['user_id'])) {
-                    try {
-                        $checkStmt = $pdo->prepare("
-                            SELECT COUNT(*) FROM order_items 
-                            JOIN orders ON order_items.order_id = orders.id 
-                            WHERE orders.user_id = ? AND order_items.product_id = ?
-                        ");
-                        $checkStmt->execute([$_SESSION['user_id'], $prod['id']]);
-                        $has_purchased = ($checkStmt->fetchColumn() > 0);
-                    } catch (PDOException $e) {
-                        $has_purchased = false;
-                    }
-                }
+                <?php 
+                    // Check if package is globally sold out (is_available == 0)
+                    $is_sold_out = (isset($prod['is_available']) && $prod['is_available'] == 0);
                 ?>
                 <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
                     <div class="h-48 bg-gray-100 flex items-center justify-center overflow-hidden relative">
                         <?php if (!empty($prod['image'])): ?>
-                            <img src="uploads/<?php echo htmlspecialchars($prod['image']); ?>" alt="<?php echo htmlspecialchars($prod['name']); ?>" class="w-full h-full object-cover">
+                            <img src="uploads/<?php echo htmlspecialchars($prod['image']); ?>" alt="<?php echo htmlspecialchars($prod['name']); ?>" class="w-full h-full object-cover <?php echo $is_sold_out ? 'opacity-60 grayscale' : ''; ?>">
                         <?php else: ?>
                             <div class="text-gray-400 text-4xl"><i class="fa-solid fa-shirt"></i></div>
                         <?php endif; ?>
 
-                        <?php if ($has_purchased): ?>
-                            <!-- Overlay Badge for Homepage -->
+                        <?php if ($is_sold_out): ?>
+                            <!-- Global Overlay Badge for ALL Users when Purchased -->
                             <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                <span class="px-4 py-1.5 bg-yellow-400 text-gray-900 font-bold text-xs rounded-full shadow-lg">
+                                <span class="px-5 py-2 bg-yellow-400 text-gray-900 font-extrabold text-sm rounded-full shadow-lg tracking-wide">
                                     <i class="fa-solid fa-check mr-1"></i> Already Purchased
                                 </span>
                             </div>
@@ -76,17 +63,16 @@ include 'includes/header.php';
                             <h3 class="font-bold text-gray-900 mt-1"><?php echo htmlspecialchars($prod['name']); ?></h3>
                             <p class="text-lg font-extrabold text-gray-900 mt-2"><?php echo formatPrice($prod['price']); ?></p>
                         </div>
-
                         <div class="mt-4">
-                            <?php if ($has_purchased): ?>
-                                <!-- Disabled Button if Already Bought -->
+                            <?php if ($is_sold_out): ?>
+                                <!-- Globally Sold Out Button for Everyone -->
                                 <button disabled class="block w-full py-2 bg-gray-100 text-gray-400 text-sm font-medium rounded-lg text-center cursor-not-allowed">
-                                    Purchased
+                                    Sold Out
                                 </button>
                             <?php else: ?>
-                                <!-- Active Link to Details/Cart -->
+                                <!-- Active Link to View Package -->
                                 <a href="product-detail.php?id=<?php echo $prod['id']; ?>" class="block text-center w-full py-2 bg-yellow-500 text-white text-sm font-medium rounded-lg hover:bg-yellow-600 transition-colors">
-                                    View Details
+                                    View Package
                                 </a>
                             <?php endif; ?>
                         </div>

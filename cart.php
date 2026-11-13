@@ -4,16 +4,10 @@ session_start();
 require_once 'config/database.php';
 require_once 'includes/functions.php';
 
-// Require login before buying/adding to cart
+// REQUIRE LOGIN BEFORE BUYING/ADDING TO CART
 if (!isset($_SESSION['user_id'])) {
+    // Optional: save a message or redirect back after login
     redirect('login.php');
-}
-
-// RESTRICT ADMIN FROM PURCHASING
-if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
-    // Redirect admin back to their dashboard or show an error
-    $_SESSION['error'] = "Administrators cannot place orders or purchase items from the store front.";
-    redirect('admin/dashboard.php');
 }
 
 // Initialize cart if not set
