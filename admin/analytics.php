@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     redirect('../login.php');
 }
 
-// Fetch analytics aggregated data aligned with products (Stocks, Categories, Sizes)
+// Fetch analytics aggregated data aligned with products (Stocks, Categories, Sizes, Age Ranges)
 try {
     // 1. Line Graph: Monthly Revenue for the current year
     $revenueStmt = $pdo->query("
@@ -35,7 +35,16 @@ try {
     $categoryData = $categoryStmt->fetchAll(PDO::FETCH_KEY_PAIR);
     $totalActiveProducts = array_sum($categoryData);
 
-    // 3. Bar Graph: Top Selling Products (Including Size and Stock details)
+    // 3. Doughnut Chart: Age Range / Apparel Size Distribution
+    $ageStmt = $pdo->query("
+        SELECT size as age_range, COUNT(*) as count 
+        FROM products 
+        WHERE size IS NOT NULL AND size != '' 
+        GROUP BY size
+    ");
+    $ageData = $ageStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    // 4. Bar Graph: Top Selling Products (Including Size and Stock details)
     $topProductsStmt = $pdo->query("
         SELECT p.name, p.size, p.stock, SUM(oi.quantity) as total_sold
         FROM order_items oi
@@ -46,7 +55,7 @@ try {
     ");
     $topProducts = $topProductsStmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // 4. Stock Levels Overview across Inventory
+    // 5. Stock Levels Overview across Inventory
     $stockStmt = $pdo->query("
         SELECT name, stock, size 
         FROM products 
@@ -62,6 +71,7 @@ try {
 } catch (PDOException $e) {
     $monthlyData = array_fill(1, 12, 0);
     $categoryData = [];
+    $ageData = [];
     $topProducts = [];
     $lowStockProducts = [];
     $totalAnnualRevenue = 0;
@@ -134,7 +144,7 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
             <header class="flex items-center justify-between h-20 px-8 bg-white border-b border-gray-200 shadow-2xs">
                 <div>
                     <h1 class="text-xl font-extrabold text-gray-900">Store Performance & Analytics</h1>
-                    <p class="text-xs text-gray-400 mt-0.5">Real-time financial breakdown, category share, and inventory monitoring.</p>
+                    <p class="text-xs text-gray-400 mt-0.5">Real-time financial breakdown, category share, age demographic metrics, and inventory monitoring.</p>
                 </div>
                 <div class="flex items-center space-x-3">
                     <span class="text-sm font-medium text-gray-600">Hi, <?php echo htmlspecialchars($_SESSION['fullname']); ?></span>
@@ -191,7 +201,7 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
                     </div>
                 </div>
 
-                <!-- Middle Row: Line Chart (Revenue) & Doughnut Chart (Category Distribution) -->
+                <!-- Row 1: Line Chart (Revenue) & Doughnut Chart (Category Distribution) -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <!-- Line Graph: Monthly Revenue -->
                     <div class="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-2xs">
@@ -224,10 +234,25 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
                     </div>
                 </div>
 
-                <!-- Bottom Row: Bar Chart for Top Selling Products & Stock Alert Widget -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Row 2: Age Range Distribution & Top Selling Bar Chart -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Doughnut Chart: Target Age Range / Size Breakdown -->
+                    <div class="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-2xs">
+                        <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+                            <div>
+                                <h3 class="font-bold text-gray-900 text-base flex items-center gap-2">
+                                    <i class="fa-solid fa-baby text-yellow-600"></i> Catalog Share by Target Age Range
+                                </h3>
+                                <p class="text-xs text-gray-400 mt-0.5">Distribution of products across infant and toddler sizes.</p>
+                            </div>
+                        </div>
+                        <div class="relative h-72 flex justify-center">
+                            <canvas id="ageRangeChart"></canvas>
+                        </div>
+                    </div>
+
                     <!-- Top Selling Bar Chart -->
-                    <div class="lg:col-span-2 bg-white border border-gray-200/80 rounded-2xl p-6 shadow-2xs">
+                    <div class="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-2xs">
                         <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
                             <div>
                                 <h3 class="font-bold text-gray-900 text-base flex items-center gap-2">
@@ -236,46 +261,39 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
                                 <p class="text-xs text-gray-400 mt-0.5">Most purchased product models factoring sizes.</p>
                             </div>
                         </div>
-                        <div class="relative h-80">
+                        <div class="relative h-72">
                             <canvas id="productChart"></canvas>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Stock Alert Widget -->
-                    <div class="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-2xs flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100">
-                                <h3 class="font-bold text-gray-900 text-base flex items-center gap-2">
-                                    <i class="fa-solid fa-boxes-stacked text-yellow-600"></i> Low Stock Watch
-                                </h3>
-                            </div>
-                            <div class="space-y-3">
-                                <?php if (!empty($lowStockProducts)): ?>
-                                    <?php foreach ($lowStockProducts as $item): ?>
-                                        <div class="flex items-center justify-between p-3.5 bg-gray-50/80 rounded-xl border border-gray-100 text-xs hover:bg-gray-50 transition-colors">
-                                            <div>
-                                                <span class="font-bold text-gray-900 block"><?php echo htmlspecialchars($item['name']); ?></span>
-                                                <span class="text-gray-400 text-[11px]">Size: <?php echo htmlspecialchars($item['size'] ?? 'Standard'); ?></span>
-                                            </div>
-                                            <span class="px-2.5 py-1 font-extrabold rounded-lg <?php echo ($item['stock'] <= 5) ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-yellow-50 text-yellow-700 border border-yellow-200'; ?>">
-                                                <?php echo (int)$item['stock']; ?> left
-                                            </span>
-                                        </div>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <div class="text-center py-10 text-gray-400">
-                                        <i class="fa-regular fa-face-smile text-2xl mb-2 text-yellow-500 block"></i>
-                                        <p class="text-xs">All inventory stock levels are healthy!</p>
+                <!-- Bottom Row: Stock Alert Widget -->
+                <div class="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-2xs">
+                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100">
+                        <h3 class="font-bold text-gray-900 text-base flex items-center gap-2">
+                            <i class="fa-solid fa-boxes-stacked text-yellow-600"></i> Low Stock Inventory Watch
+                        </h3>
+                        <a href="products.php" class="text-xs font-bold text-yellow-600 hover:underline">Manage Inventory &rarr;</a>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+                        <?php if (!empty($lowStockProducts)): ?>
+                            <?php foreach ($lowStockProducts as $item): ?>
+                                <div class="flex items-center justify-between p-3.5 bg-gray-50/80 rounded-xl border border-gray-100 text-xs">
+                                    <div>
+                                        <span class="font-bold text-gray-900 block truncate max-w-[130px]" title="<?php echo htmlspecialchars($item['name']); ?>"><?php echo htmlspecialchars($item['name']); ?></span>
+                                        <span class="text-gray-400 text-[11px]">Size: <?php echo htmlspecialchars($item['size'] ?? 'Standard'); ?></span>
                                     </div>
-                                <?php endif; ?>
+                                    <span class="px-2.5 py-1 font-extrabold rounded-lg <?php echo ($item['stock'] <= 5) ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-yellow-50 text-yellow-700 border border-yellow-200'; ?>">
+                                        <?php echo (int)$item['stock']; ?> left
+                                    </span>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="col-span-full text-center py-6 text-gray-400 text-xs">
+                                <i class="fa-regular fa-face-smile text-xl mb-1 text-yellow-500 block"></i>
+                                All inventory stock levels are healthy!
                             </div>
-                        </div>
-                        <div class="mt-6 pt-4 border-t border-gray-100">
-                            <a href="products.php" class="flex items-center justify-center gap-2 w-full py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-xs font-semibold transition-colors shadow-2xs">
-                                <span>Manage Inventory</span>
-                                <i class="fa-solid fa-arrow-right text-[10px]"></i>
-                            </a>
-                        </div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -369,13 +387,46 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
             }
         });
 
+        // 3. Doughnut Chart: Age Range Distribution
+        const ageCtx = document.getElementById('ageRangeChart').getContext('2d');
+        new Chart(ageCtx, {
+            type: 'doughnut',
+            data: {
+                labels: <?php echo json_encode(array_keys($ageData)); ?>,
+                datasets: [{
+                    data: <?php echo json_encode(array_values($ageData)); ?>,
+                    backgroundColor: ['#f59e0b', '#06b6d4', '#84cc16', '#a855f7', '#f43f5e', '#6366f1'],
+                    borderWidth: 3,
+                    borderColor: '#ffffff',
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { 
+                        position: 'bottom',
+                        labels: { boxWidth: 12, font: { size: 11 }, padding: 15 }
+                    },
+                    tooltip: {
+                        backgroundColor: '#111827',
+                        padding: 12,
+                        cornerRadius: 10
+                    }
+                },
+                cutout: '70%'
+            }
+        });
+
+        // 4. Bar Chart: Top Products Demand with Legend Box Mapping
         // 3. Bar Chart: Top Products Demand with Legend Box Mapping
         const productCtx = document.getElementById('productChart').getContext('2d');
         const topProductsRaw = <?php echo json_encode($topProducts); ?>;
         
         // Use clean X-axis labels to prevent text overlap
         const productLabels = topProductsRaw.map((p, index) => 'Product ' + (index + 1));
-        const fullProductNames = topProductsRaw.map(p => p.name + ' (' + (p.size || 'Standard') + ')');
+        const fullProductNames = topProductsRaw.map(p => p.name + ' (' + (p.size || 'Standard') + ')'); // Fixed .app to .map
         const productSales = topProductsRaw.map(p => p.total_sold);
 
         const productColors = [
