@@ -3,6 +3,9 @@
 if (!isset($pageTitle)) {
     $pageTitle = "Elliana's Boutique | Cute Baby Apparel";
 }
+
+// Determine active page for navigation highlight
+$current_page = basename($_SERVER['PHP_SELF']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -18,53 +21,117 @@ if (!isset($pageTitle)) {
 <body class="bg-gray-50 font-sans antialiased flex flex-col min-h-screen">
 
     <!-- Top Navigation Bar -->
-    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-            <!-- Logo -->
-            <!-- Logo -->
-            <a href="index.php" class="text-xl font-bold text-gray-900 flex items-center">
-                <img src="assets/images/Logo.png" alt="Elliana's Boutique Logo" class="h-10 w-auto mr-2 object-contain">
-                Elliana's Boutique
+    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-xs">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            
+            <!-- Logo & Brand -->
+            <a href="index.php" class="flex items-center gap-3 group">
+                <div class="h-11 w-11 bg-yellow-50 rounded-2xl flex items-center justify-center border border-yellow-100 group-hover:scale-105 transition-transform shadow-xs">
+                    <img src="assets/images/Logo.png" alt="Elliana's Boutique Logo" class="h-7 w-auto object-contain" onerror="this.onerror=null; this.src='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/svgs/solid/baby.svg';">
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-lg font-extrabold tracking-tight text-gray-900 group-hover:text-yellow-600 transition-colors">Elliana's</span>
+                    <span class="text-[11px] font-bold uppercase tracking-widest text-yellow-600 -mt-1">Boutique</span>
+                </div>
             </a>
 
-            <!-- Navigation Links -->
-            <div class="hidden md:flex items-center space-x-6 text-sm font-medium text-gray-600">
-                <a href="index.php" class="hover:text-yellow-600 transition-colors">Home</a>
-                <a href="shop.php" class="hover:text-yellow-600 transition-colors">Shop</a>
-                <a href="my-orders.php" class="text-gray-600 hover:text-yellow-600 font-medium text-sm transition-colors">My Purchases</a>
+            <!-- Desktop Navigation Links -->
+            <div class="hidden md:flex items-center space-x-8 text-sm font-semibold">
+                <a href="index.php" class="<?php echo ($current_page == 'index.php') ? 'text-yellow-600 border-b-2 border-yellow-600 py-2' : 'text-gray-600 hover:text-yellow-600 py-2'; ?> transition-colors">
+                    Home
+                </a>
+                <a href="shop.php" class="<?php echo ($current_page == 'shop.php' || $current_page == 'product-detail.php') ? 'text-yellow-600 border-b-2 border-yellow-600 py-2' : 'text-gray-600 hover:text-yellow-600 py-2'; ?> transition-colors">
+                    Shop Collection
+                </a>
+                <?php if (isset($_SESSION['user_id']) && (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin')): ?>
+                    <a href="my-orders.php" class="<?php echo ($current_page == 'my-orders.php') ? 'text-yellow-600 border-b-2 border-yellow-600 py-2' : 'text-gray-600 hover:text-yellow-600 py-2'; ?> transition-colors">
+                        My Purchases
+                    </a>
+                <?php endif; ?>
             </div>
 
             <!-- Right Actions (Cart & Auth) -->
             <div class="flex items-center space-x-4">
-                <a href="cart.php" class="relative text-gray-700 hover:text-yellow-600 transition-colors p-2">
-                    <i class="fa-solid fa-cart-shopping text-lg"></i>
+                <!-- Cart Icon -->
+                <a href="cart.php" class="relative text-gray-700 hover:text-yellow-600 transition-colors p-2.5 bg-gray-50 rounded-xl hover:bg-yellow-50 border border-gray-100 flex items-center justify-center">
+                    <i class="fa-solid fa-cart-shopping text-base"></i>
                     <?php 
                     $cartCount = isset($_SESSION['cart']) ? array_sum(array_column($_SESSION['cart'], 'quantity')) : 0;
                     if ($cartCount > 0): 
                     ?>
-                        <span class="absolute top-0 right-0 h-5 w-5 bg-yellow-500 text-white rounded-full text-xs font-bold flex items-center justify-center">
+                        <span class="absolute -top-1.5 -right-1.5 h-5 w-5 bg-yellow-500 text-white rounded-full text-xs font-bold flex items-center justify-center shadow-sm">
                             <?php echo $cartCount; ?>
                         </span>
                     <?php endif; ?>
                 </a>
 
+                <!-- User Session / Auth -->
                 <?php if (isset($_SESSION['user_id'])): ?>
-                    <div class="flex items-center space-x-3 border-l pl-4 border-gray-200">
-                        <span class="text-sm font-medium text-gray-700">Hi, <?php echo htmlspecialchars($_SESSION['fullname']); ?></span>
+                    <div class="hidden md:flex items-center space-x-3 border-l pl-4 border-gray-200">
+                        <!-- Profile Badge -->
+                        <!-- Profile Badge (Clickable link to profile.php) -->
+                        <a href="profile.php" class="flex items-center space-x-2.5 bg-gray-50 hover:bg-yellow-50 px-3.5 py-2 rounded-xl border border-gray-100 shadow-xs transition-colors group">
+                            <div class="h-7 w-7 rounded-lg bg-yellow-500 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                                <?php echo strtoupper(substr($_SESSION['fullname'], 0, 1)); ?>
+                            </div>
+                            <span class="text-sm font-bold text-gray-800 group-hover:text-yellow-600 transition-colors">Hi, <?php echo htmlspecialchars($_SESSION['fullname']); ?></span>
+                        </a>
+
+                        <!-- Admin Shortcut Button -->
                         <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
-                            <a href="admin/dashboard.php" class="text-xs bg-gray-900 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-gray-800 transition-colors">Admin</a>
+                            <a href="admin/dashboard.php" class="text-xs bg-gray-900 text-white px-3.5 py-2.5 rounded-xl font-semibold hover:bg-gray-800 transition-colors shadow-xs flex items-center gap-1.5">
+                                <i class="fa-solid fa-gauge text-[10px]"></i> Admin
+                            </a>
                         <?php endif; ?>
-                        <a href="logout.php" class="text-sm text-red-600 hover:text-red-800 font-medium">Logout</a>
+
+                        <!-- Logout Button with Text -->
+                        <a href="logout.php" class="flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3.5 py-2.5 rounded-xl transition-colors border border-red-100">
+                            <i class="fa-solid fa-right-from-bracket"></i> Logout
+                        </a>
                     </div>
                 <?php else: ?>
-                    <div class="flex items-center space-x-2 border-l pl-4 border-gray-200">
-                        <a href="login.php" class="text-sm font-medium text-gray-700 hover:text-yellow-600 px-3 py-2">Log in</a>
-                        <a href="register.php" class="text-sm font-medium bg-yellow-500 text-white px-4 py-2 rounded-xl shadow-sm hover:bg-yellow-600 transition-colors">Sign up</a>
+                    <div class="hidden md:flex items-center space-x-2 border-l pl-4 border-gray-200">
+                        <a href="login.php" class="text-sm font-semibold text-gray-700 hover:text-yellow-600 px-3 py-2">Log in</a>
+                        <a href="register.php" class="text-sm font-semibold bg-yellow-500 text-white px-4 py-2.5 rounded-xl shadow-sm hover:bg-yellow-600 transition-colors">Sign up</a>
                     </div>
                 <?php endif; ?>
+
+                <!-- Mobile Menu Toggle Button -->
+                <button id="mobile-menu-btn" class="md:hidden text-gray-700 hover:text-yellow-600 p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
             </div>
         </div>
+
+        <!-- Mobile Dropdown Menu -->
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-b border-gray-200 px-6 py-4 space-y-3">
+            <a href="index.php" class="block text-sm font-semibold py-2 <?php echo ($current_page == 'index.php') ? 'text-yellow-600' : 'text-gray-600'; ?>">Home</a>
+            <a href="shop.php" class="block text-sm font-semibold py-2 <?php echo ($current_page == 'shop.php') ? 'text-yellow-600' : 'text-gray-600'; ?>">Shop Collection</a>
+            <?php if (isset($_SESSION['user_id'])): ?>
+                <a href="my-orders.php" class="block text-sm font-semibold py-2 text-gray-600">My Purchases</a>
+                <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+                    <a href="admin/dashboard.php" class="block text-sm font-semibold py-2 text-yellow-600">Admin Dashboard</a>
+                <?php endif; ?>
+                <a href="logout.php" class="flex items-center gap-2 text-sm font-semibold py-2 text-red-600">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </a>
+            <?php else: ?>
+                <div class="pt-2 flex gap-2">
+                    <a href="login.php" class="flex-1 text-center text-sm font-semibold py-2.5 border border-gray-300 rounded-xl text-gray-700">Log in</a>
+                    <a href="register.php" class="flex-1 text-center text-sm font-semibold py-2.5 bg-yellow-500 text-white rounded-xl shadow-sm">Sign up</a>
+                </div>
+            <?php endif; ?>
+        </div>
     </nav>
+
+    <!-- Mobile Menu Script -->
+    <script>
+        const btn = document.getElementById('mobile-menu-btn');
+        const menu = document.getElementById('mobile-menu');
+        btn.addEventListener('click', () => {
+            menu.classList.toggle('hidden');
+        });
+    </script>
 
     <!-- Main Content Wrapper -->
     <main class="flex-grow">

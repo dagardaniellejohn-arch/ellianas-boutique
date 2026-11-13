@@ -41,10 +41,16 @@ $pageTitle = "Manage Orders | Elliana's Boutique Admin";
         <!-- Sidebar Navigation -->
         <aside class="hidden md:flex md:flex-shrink-0">
             <div class="flex flex-col w-64 bg-gray-900 text-gray-300">
-                <div class="flex items-center justify-center h-16 bg-gray-950 px-4">
-                    <span class="text-xl font-bold text-white tracking-wider flex items-center">
-                        <i class="fa-solid fa-baby mr-2 text-yellow-400"></i> Elliana Admin
-                    </span>
+                <div class="flex items-center justify-center h-20 bg-gray-950 px-4 border-b border-gray-800">
+                    <a href="dashboard.php" class="flex items-center gap-2.5 group">
+                        <div class="h-10 w-10 bg-yellow-500/10 rounded-xl flex items-center justify-center border border-yellow-500/20 group-hover:scale-105 transition-transform">
+                            <img src="../assets/images/Logo.png" alt="Elliana's Logo" class="h-6 w-auto object-contain" onerror="this.onerror=null; this.src='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/svgs/solid/baby.svg';">
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-base font-extrabold text-white tracking-wide group-hover:text-yellow-400 transition-colors">Elliana Admin</span>
+                            <span class="text-[10px] font-semibold uppercase tracking-widest text-yellow-500 -mt-1">Management</span>
+                        </div>
+                    </a>
                 </div>
                 <div class="flex flex-col flex-grow px-4 py-6 space-y-2">
                     <a href="dashboard.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg hover:bg-gray-800 hover:text-white transition-colors">
