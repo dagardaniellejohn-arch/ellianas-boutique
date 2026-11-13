@@ -9,6 +9,12 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     redirect('../login.php');
 }
 
+// Handle clearing notifications
+if (isset($_GET['action']) && $_GET['action'] === 'clear_notifications') {
+    $_SESSION['notifications_cleared_time'] = time();
+    redirect('dashboard.php');
+}
+
 // Fetch stats for dashboard
 try {
     $userCount = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
@@ -29,6 +35,16 @@ try {
     $recent_orders = [];
 }
 
+// If notifications were cleared, check if we should hide them or filter out orders placed before clear time
+// (Alternatively, if you want a clean wipe of the visible list until new orders arrive, we check timestamps)
+if (isset($_SESSION['notifications_cleared_time'])) {
+    $cleared_time = $_SESSION['notifications_cleared_time'];
+    // Filter out orders that were created before the clear action
+    $recent_orders = array_filter($recent_orders, function($order) use ($cleared_time) {
+        return strtotime($order['created_at']) > $cleared_time;
+    });
+}
+
 $pageTitle = "Admin Dashboard | Elliana's Boutique";
 ?>
 <!DOCTYPE html>
@@ -47,44 +63,44 @@ $pageTitle = "Admin Dashboard | Elliana's Boutique";
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar Navigation -->
         <aside class="hidden md:flex md:flex-shrink-0">
-    <div class="flex flex-col w-64 bg-gray-900 text-gray-300">
-        <!-- Logo Branding Header -->
-        <div class="flex items-center justify-center h-20 bg-gray-950 px-4 border-b border-gray-800">
-            <a href="dashboard.php" class="flex items-center gap-2.5 group">
-                <div class="h-10 w-10 bg-yellow-500/10 rounded-xl flex items-center justify-center border border-yellow-500/20 group-hover:scale-105 transition-transform">
-                    <img src="../assets/images/Logo.png" alt="Elliana's Logo" class="h-6 w-auto object-contain" onerror="this.onerror=null; this.src='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/svgs/solid/baby.svg';">
+            <div class="flex flex-col w-64 bg-gray-900 text-gray-300">
+                <!-- Logo Branding Header -->
+                <div class="flex items-center justify-center h-20 bg-gray-950 px-4 border-b border-gray-800">
+                    <a href="dashboard.php" class="flex items-center gap-2.5 group">
+                        <div class="h-10 w-10 bg-yellow-500/10 rounded-xl flex items-center justify-center border border-yellow-500/20 group-hover:scale-105 transition-transform">
+                            <img src="../assets/images/Logo.png" alt="Elliana's Logo" class="h-6 w-auto object-contain" onerror="this.onerror=null; this.src='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/svgs/solid/baby.svg';">
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-base font-extrabold text-white tracking-wide group-hover:text-yellow-400 transition-colors">Elliana Admin</span>
+                            <span class="text-[10px] font-semibold uppercase tracking-widest text-yellow-500 -mt-1">Management</span>
+                        </div>
+                    </a>
                 </div>
-                <div class="flex flex-col">
-                    <span class="text-base font-extrabold text-white tracking-wide group-hover:text-yellow-400 transition-colors">Elliana Admin</span>
-                    <span class="text-[10px] font-semibold uppercase tracking-widest text-yellow-500 -mt-1">Management</span>
-                </div>
-            </a>
-        </div>
 
-        <div class="flex flex-col flex-grow px-4 py-6 space-y-2">
-            <a href="dashboard.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg bg-yellow-500 text-white shadow-xs">
-                <i class="fa-solid fa-house mr-3"></i> Dashboard
-            </a>
-            <a href="products.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg hover:bg-gray-800 hover:text-white transition-colors">
-                <i class="fa-solid fa-shirt mr-3"></i> Products
-            </a>
-            <a href="orders.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg hover:bg-gray-800 hover:text-white transition-colors">
-                <i class="fa-solid fa-box-archive mr-3"></i> Orders
-            </a>
-            <a href="users.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg hover:bg-gray-800 hover:text-white transition-colors">
-                <i class="fa-solid fa-users mr-3"></i> Users
-            </a>
-            <a href="../index.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg hover:bg-gray-800 hover:text-white transition-colors">
-                <i class="fa-solid fa-store mr-3"></i> View Store
-            </a>
-        </div>
-        <div class="p-4 bg-gray-950 border-t border-gray-800">
-            <a href="../logout.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors">
-                <i class="fa-solid fa-right-from-bracket mr-3"></i> Logout
-            </a>
-        </div>
-    </div>
-</aside>
+                <div class="flex flex-col flex-grow px-4 py-6 space-y-2">
+                    <a href="dashboard.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg bg-yellow-500 text-white shadow-xs">
+                        <i class="fa-solid fa-house mr-3"></i> Dashboard
+                    </a>
+                    <a href="products.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fa-solid fa-shirt mr-3"></i> Products
+                    </a>
+                    <a href="orders.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fa-solid fa-box-archive mr-3"></i> Orders
+                    </a>
+                    <a href="users.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fa-solid fa-users mr-3"></i> Users
+                    </a>
+                    <a href="../index.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fa-solid fa-store mr-3"></i> View Store
+                    </a>
+                </div>
+                <div class="p-4 bg-gray-950 border-t border-gray-800">
+                    <a href="../logout.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors">
+                        <i class="fa-solid fa-right-from-bracket mr-3"></i> Logout
+                    </a>
+                </div>
+            </div>
+        </aside>
 
         <!-- Main Content Area -->
         <div class="flex flex-col flex-1 h-full overflow-hidden">
@@ -171,7 +187,14 @@ $pageTitle = "Admin Dashboard | Elliana's Boutique";
                         <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
                             <i class="fa-solid fa-bell text-yellow-600"></i> Recent Order Notifications & Purchases
                         </h2>
-                        <span class="text-xs bg-yellow-50 text-yellow-700 font-semibold px-3 py-1 rounded-full">Live Alerts</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs bg-yellow-50 text-yellow-700 font-semibold px-3 py-1 rounded-full">Live Alerts</span>
+                            <?php if (!empty($recent_orders)): ?>
+                                <a href="dashboard.php?action=clear_notifications" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5">
+                                    <i class="fa-solid fa-trash-can text-gray-500"></i> Clear All
+                                </a>
+                            <?php endif; ?>
+                        </div>
                     </div>
 
                     <?php if (!empty($recent_orders)): ?>
@@ -192,7 +215,10 @@ $pageTitle = "Admin Dashboard | Elliana's Boutique";
                             <?php endforeach; ?>
                         </div>
                     <?php else: ?>
-                        <p class="text-sm text-gray-500">No incoming purchase notifications yet.</p>
+                        <div class="py-8 text-center text-gray-400 text-sm">
+                            <i class="fa-regular fa-bell-slash text-2xl mb-2 block"></i>
+                            No recent purchase notifications.
+                        </div>
                     <?php endif; ?>
                 </div>
 
