@@ -51,10 +51,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Begin transaction
             $pdo->beginTransaction();
 
-            // 1. Insert into orders table
-            $stmt = $pdo->prepare("INSERT INTO orders (user_id, total_amount, shipping_method, shipping_fee, payment_method, status, created_at) VALUES (?, ?, ?, ?, ?, 'Purchased', NOW())");
-            $stmt->execute([$user_id, $total_amount, $shipping_method, $shipping_fee, $payment_method]);
+            // ----------------------------------------------------
+            // PUT IT HERE: Replace your old INSERT statement with this:
+            // ----------------------------------------------------
+            $stmt = $pdo->prepare("INSERT INTO orders (user_id, total_amount, shipping_method, shipping_fee, payment_method, address, city, zip, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Purchased', NOW())");
+            $stmt->execute([$user_id, $total_amount, $shipping_method, $shipping_fee, $payment_method, $address, $city, $zip]);
             $order_id = $pdo->lastInsertId();
+            // ----------------------------------------------------
 
             // 2. Prepare statements for order items and dynamic stock reduction / availability locking
             $itemStmt = $pdo->prepare("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)");

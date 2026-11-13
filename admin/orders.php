@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     redirect('../login.php');
 }
 
-// Fetch all orders with user details and associated order items / product IDs
+// Fetch all orders with user details, shipping destination, and associated order items / products
 try {
     $stmt = $pdo->query("
         SELECT o.*, u.fullname, u.email,
@@ -110,6 +110,7 @@ $pageTitle = "Manage Orders | Elliana's Boutique Admin";
                                 <tr class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
                                     <th class="px-6 py-3">Order ID</th>
                                     <th class="px-6 py-3">Customer</th>
+                                    <th class="px-6 py-3">Delivery Address</th>
                                     <th class="px-6 py-3">Purchased Products</th>
                                     <th class="px-6 py-3">Shipping & Payment</th>
                                     <th class="px-6 py-3">Total Amount</th>
@@ -126,7 +127,17 @@ $pageTitle = "Manage Orders | Elliana's Boutique Admin";
                                             <div class="font-medium text-gray-900"><?php echo htmlspecialchars($ord['fullname'] ?? 'Guest Customer'); ?></div>
                                             <div class="text-xs text-gray-500"><?php echo htmlspecialchars($ord['email'] ?? ''); ?></div>
                                         </td>
-                                        <!-- Product ID FG-019 & Names Column (Quantities Removed) -->
+                                        <!-- Delivery Address Column -->
+                                        <td class="px-6 py-4 align-top">
+                                            <div class="text-xs font-medium text-gray-900">
+                                                <i class="fa-solid fa-location-dot text-yellow-600 mr-1"></i> 
+                                                <?php echo htmlspecialchars($ord['address'] ?? 'No address provided'); ?>
+                                            </div>
+                                            <div class="text-xs text-gray-500 mt-0.5">
+                                                <?php echo htmlspecialchars($ord['city'] ?? ''); ?> <?php echo !empty($ord['zip']) ? '(' . htmlspecialchars($ord['zip']) . ')' : ''; ?>
+                                            </div>
+                                        </td>
+                                        <!-- Purchased Products Column -->
                                         <td class="px-6 py-4 align-top">
                                             <?php if (!empty($ord['product_ids'])): ?>
                                                 <?php 
@@ -160,7 +171,7 @@ $pageTitle = "Manage Orders | Elliana's Boutique Admin";
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">No orders have been placed yet.</td>
+                                        <td colspan="8" class="px-6 py-8 text-center text-gray-500">No orders have been placed yet.</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
