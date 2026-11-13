@@ -4,6 +4,15 @@ session_start();
 require_once 'config/database.php';
 require_once 'includes/functions.php';
 
+// Redirect if already logged in
+if (isset($_SESSION['user_id'])) {
+    if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+        redirect('admin/dashboard.php');
+    } else {
+        redirect('index.php');
+    }
+}
+
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -19,9 +28,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $stmt->fetch();
 
             if ($user && password_verify($password, $user['password'])) {
+                // Set session variables (including avatar for header display)
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['fullname'] = $user['fullname'];
+                $_SESSION['email'] = $user['email'];
                 $_SESSION['role'] = $user['role'];
+                $_SESSION['avatar'] = $user['avatar'];
 
                 // Redirect based on role
                 if ($user['role'] === 'admin') {
@@ -30,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     redirect('index.php');
                 }
             } else {
-                $error = "Invalid email or password.";
+                $error = "Invalid email address or password.";
             }
         } catch (PDOException $e) {
             $error = "Database error occurred.";
@@ -38,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$pageTitle = "Log In | Elliana's Boutique";
+$pageTitle = "Login | Elliana's Boutique";
 include 'includes/header.php';
 ?>
 
@@ -51,10 +63,19 @@ include 'includes/header.php';
             <h1 class="text-2xl font-bold text-gray-900">Welcome Back</h1>
             <p class="text-sm text-gray-500 mt-1">Log in to your Elliana's Boutique account</p>
         </div>
-        
+
+        <!-- Success Flash Message from Registration -->
+        <?php if (isset($_SESSION['success'])): ?>
+            <div class="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-xl text-sm flex items-center gap-2">
+                <i class="fa-solid fa-circle-check"></i>
+                <span><?php echo $_SESSION['success']; unset($_SESSION['success']); ?></span>
+            </div>
+        <?php endif; ?>
+
         <?php if (!empty($error)): ?>
-            <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm">
-                <?php echo $error; ?>
+            <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span><?php echo $error; ?></span>
             </div>
         <?php endif; ?>
 

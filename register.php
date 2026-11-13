@@ -5,7 +5,6 @@ require_once 'config/database.php';
 require_once 'includes/functions.php';
 
 $error = '';
-$success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fullname = sanitize($_POST['fullname']);
@@ -30,7 +29,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $insertStmt = $pdo->prepare("INSERT INTO users (fullname, email, password, role, created_at) VALUES (?, ?, ?, 'user', NOW())");
                 
                 if ($insertStmt->execute([$fullname, $email, $hashed_password])) {
-                    $success = "Registration successful! You can now log in.";
+                    // Automatically redirect to login page upon successful registration
+                    $_SESSION['success'] = "Registration successful! You can now log in.";
+                    redirect('login.php');
                 } else {
                     $error = "Failed to register. Please try again.";
                 }
@@ -58,12 +59,6 @@ include 'includes/header.php';
         <?php if (!empty($error)): ?>
             <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm">
                 <?php echo $error; ?>
-            </div>
-        <?php endif; ?>
-
-        <?php if (!empty($success)): ?>
-            <div class="mb-4 p-3 bg-green-50 border border-green-200 text-green-600 rounded-xl text-sm">
-                <?php echo $success; ?> <a href="login.php" class="underline font-semibold">Log in here</a>
             </div>
         <?php endif; ?>
 
