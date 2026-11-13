@@ -16,6 +16,8 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
     $name = trim($_POST['name']);
     $price = floatval($_POST['price']);
+    $discount_price = !empty($_POST['discount_price']) ? floatval($_POST['discount_price']) : null;
+    $stock = isset($_POST['stock']) ? (int)$_POST['stock'] : 10;
     $description = trim($_POST['description']);
     
     // Handle category logic (dropdown vs custom input)
@@ -56,9 +58,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
                 }
             }
 
-            // 3. Insert into Database with category, size, and is_available = 1
-            $insertStmt = $pdo->prepare("INSERT INTO products (product_code, name, category, price, size, image, description, is_available) VALUES (?, ?, ?, ?, ?, ?, ?, 1)");
-            $insertStmt->execute([$product_code, $name, $category, $price, $size, $imageName, $description]);
+            // 3. Insert into Database with discount_price, stock, category, size, and is_available = 1
+            $insertStmt = $pdo->prepare("INSERT INTO products (product_code, name, category, price, discount_price, stock, size, image, description, is_available) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
+            $insertStmt->execute([$product_code, $name, $category, $price, $discount_price, $stock, $size, $imageName, $description]);
             
             $success = "Product successfully added with code " . $product_code . "!";
         } catch (PDOException $e) {
@@ -164,7 +166,7 @@ $pageTitle = "Product Management | Elliana's Boutique";
                     <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                         <i class="fa-solid fa-plus-circle text-yellow-600"></i> Add New Baby Product (Auto Code: FG-XXX)
                     </h2>
-                    <form action="products.php" method="POST" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <form action="products.php" method="POST" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Product Name</label>
                             <input type="text" name="name" required class="w-full px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-yellow-500 focus:outline-none" placeholder="e.g. Organic Frog Romper">
@@ -185,17 +187,23 @@ $pageTitle = "Product Management | Elliana's Boutique";
                             </select>
                         </div>
 
-                        <!-- Custom Category Input (Hidden by Default) -->
-                        <div id="custom-category-container" class="md:col-span-2 hidden">
-                            <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Enter Custom Category</label>
-                            <input type="text" name="custom_category" id="custom-category-input" class="w-full px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-yellow-500 focus:outline-none" placeholder="e.g. Accessories, Shoes">
-                        </div>
-
                         <div>
                             <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Price (PHP)</label>
                             <input type="number" step="0.01" name="price" required class="w-full px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-yellow-500 focus:outline-none" placeholder="450.00">
                         </div>
+
+                        <!-- Custom Category Input (Hidden by Default) -->
+                        <div id="custom-category-container" class="md:col-span-3 hidden">
+                            <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Enter Custom Category</label>
+                            <input type="text" name="custom_category" id="custom-category-input" class="w-full px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-yellow-500 focus:outline-none" placeholder="e.g. Accessories, Shoes">
+                        </div>
                         
+                        <!-- Initial Stock Quantity Field -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Initial Stock Quantity</label>
+                            <input type="number" name="stock" value="10" min="0" required class="w-full px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-yellow-500 focus:outline-none" placeholder="10">
+                        </div>
+
                         <!-- Size Selection Field -->
                         <div>
                             <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Apparel Size</label>
@@ -211,19 +219,25 @@ $pageTitle = "Product Management | Elliana's Boutique";
                             </select>
                         </div>
 
+                        <!-- Newly Added Discount Price Field filling the empty grid space -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Discount Price (PHP) <span class="text-gray-400 font-normal">(Optional)</span></label>
+                            <input type="number" step="0.01" name="discount_price" class="w-full px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-yellow-500 focus:outline-none" placeholder="e.g. 399.00">
+                        </div>
+
                         <!-- Custom Size Input (Hidden by Default) -->
-                        <div id="custom-size-container" class="md:col-span-4 hidden">
+                        <div id="custom-size-container" class="md:col-span-3 hidden">
                             <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Enter Custom Size</label>
                             <input type="text" name="custom_size" id="custom-size-input" class="w-full px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-yellow-500 focus:outline-none" placeholder="e.g. 2T - 3T">
                         </div>
                         
                         <!-- Expanded Full-Width Description Field -->
-                        <div class="md:col-span-4">
+                        <div class="md:col-span-3">
                             <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Description</label>
                             <textarea name="description" rows="3" class="w-full px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-yellow-500 focus:outline-none resize-none" placeholder="Enter comfortable organic apparel details, sizing notes, or washing instructions..."></textarea>
                         </div>
 
-                        <div class="md:col-span-4">
+                        <div class="md:col-span-3">
                             <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Product Image</label>
                             <label id="dropzone-label" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-2xl cursor-pointer bg-gray-50 hover:bg-yellow-50/50 hover:border-yellow-500 transition-all group">
                                 <div class="flex flex-col items-center justify-center pt-5 pb-6 px-4 text-center">
@@ -277,7 +291,7 @@ $pageTitle = "Product Management | Elliana's Boutique";
                         }
                         </script>
 
-                        <div class="md:col-span-4 flex justify-end">
+                        <div class="md:col-span-3 flex justify-end">
                             <button type="submit" name="add_product" class="px-6 py-2.5 bg-yellow-500 text-white font-semibold rounded-xl text-sm hover:bg-yellow-600 transition-colors shadow-sm">
                                 <i class="fa-solid fa-save mr-1.5"></i> Save & Generate Product Code
                             </button>
@@ -298,6 +312,7 @@ $pageTitle = "Product Management | Elliana's Boutique";
                                     <th class="py-3 px-6">Product Name</th>
                                     <th class="py-3 px-6">Category</th>
                                     <th class="py-3 px-6">Size</th>
+                                    <th class="py-3 px-6">Stock</th>
                                     <th class="py-3 px-6">Price</th>
                                     <th class="py-3 px-6">Status Flag</th>
                                     <th class="py-3 px-6 text-right">Actions</th>
@@ -306,7 +321,8 @@ $pageTitle = "Product Management | Elliana's Boutique";
                             <tbody class="divide-y divide-gray-200 text-sm">
                                 <?php if (!empty($products)): ?>
                                     <?php foreach ($products as $prod): 
-                                        $is_purchased = (isset($prod['is_available']) && $prod['is_available'] == 0);
+                                        $stock_qty = isset($prod['stock']) ? (int)$prod['stock'] : 10;
+                                        $is_purchased = ($stock_qty <= 0 || (isset($prod['is_available']) && $prod['is_available'] == 0));
                                         $pcode = !empty($prod['product_code']) ? $prod['product_code'] : 'FG-' . str_pad($prod['id'], 3, '0', STR_PAD_LEFT);
                                     ?>
                                         <tr class="<?php echo $is_purchased ? 'bg-gray-50/80' : ''; ?>">
@@ -333,11 +349,23 @@ $pageTitle = "Product Management | Elliana's Boutique";
                                                     <?php echo htmlspecialchars($prod['size'] ?? '0-3 Months'); ?>
                                                 </span>
                                             </td>
-                                            <td class="py-4 px-6 font-extrabold text-gray-900"><?php echo formatPrice($prod['price']); ?></td>
+                                            <td class="py-4 px-6">
+                                                <span class="font-bold text-gray-900 bg-gray-100 px-2.5 py-1 rounded-lg">
+                                                    <?php echo $stock_qty; ?> left
+                                                </span>
+                                            </td>
+                                            <td class="py-4 px-6 font-extrabold text-gray-900">
+                                                <?php if (!empty($prod['discount_price']) && $prod['discount_price'] > 0): ?>
+                                                    <span class="text-red-600"><?php echo formatPrice($prod['discount_price']); ?></span>
+                                                    <span class="text-xs text-gray-400 line-through block"><?php echo formatPrice($prod['price']); ?></span>
+                                                <?php else: ?>
+                                                    <?php echo formatPrice($prod['price']); ?>
+                                                <?php endif; ?>
+                                            </td>
                                             <td class="py-4 px-6">
                                                 <?php if ($is_purchased): ?>
                                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-gray-200 text-gray-800">
-                                                        <i class="fa-solid fa-lock mr-1.5 text-[10px]"></i> Purchased / Sold Out
+                                                        <i class="fa-solid fa-lock mr-1.5 text-[10px]"></i> Sold Out
                                                     </span>
                                                 <?php else: ?>
                                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-green-50 text-green-700">
@@ -354,7 +382,7 @@ $pageTitle = "Product Management | Elliana's Boutique";
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="7" class="py-8 text-center text-gray-500">No products found in inventory. Use the form above to add one!</td>
+                                        <td colspan="8" class="py-8 text-center text-gray-500">No products found in inventory. Use the form above to add one!</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>

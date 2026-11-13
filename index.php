@@ -38,8 +38,17 @@ include 'includes/header.php';
                 <?php 
                     // Check if package is globally sold out (is_available == 0)
                     $is_sold_out = (isset($prod['is_available']) && $prod['is_available'] == 0);
+                    $has_discount = !empty($prod['discount_price']) && $prod['discount_price'] > 0 && $prod['discount_price'] < $prod['price'];
                 ?>
-                <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+                <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between relative">
+                    
+                    <?php if ($has_discount && !$is_sold_out): ?>
+                        <!-- Sale Offer Badge Overlay -->
+                        <div class="absolute top-3 left-3 z-10 bg-red-600 text-white text-[11px] font-extrabold px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider">
+                            Sale
+                        </div>
+                    <?php endif; ?>
+
                     <div class="h-48 bg-gray-100 flex items-center justify-center overflow-hidden relative">
                         <?php if (!empty($prod['image'])): ?>
                             <img src="uploads/<?php echo htmlspecialchars($prod['image']); ?>" alt="<?php echo htmlspecialchars($prod['name']); ?>" class="w-full h-full object-cover <?php echo $is_sold_out ? 'opacity-60 grayscale' : ''; ?>">
@@ -61,8 +70,25 @@ include 'includes/header.php';
                         <div>
                             <span class="text-xs font-semibold uppercase tracking-wider text-yellow-600"><?php echo htmlspecialchars($prod['category'] ?? 'Baby Clothes'); ?></span>
                             <h3 class="font-bold text-gray-900 mt-1"><?php echo htmlspecialchars($prod['name']); ?></h3>
-                            <p class="text-lg font-extrabold text-gray-900 mt-2"><?php echo formatPrice($prod['price']); ?></p>
+                            
+                            <!-- Display Size Pre-Setting Tag -->
+                            <?php if (!empty($prod['size'])): ?>
+                                <div class="mt-1">
+                                    <span class="inline-block text-[10px] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded">Size: <?php echo htmlspecialchars($prod['size']); ?></span>
+                                </div>
+                            <?php endif; ?>
+
+                            <!-- Pricing with Discount Support -->
+                            <div class="mt-2">
+                                <?php if ($has_discount): ?>
+                                    <span class="text-lg font-extrabold text-red-600"><?php echo formatPrice($prod['discount_price']); ?></span>
+                                    <span class="text-xs text-gray-400 line-through ml-1"><?php echo formatPrice($prod['price']); ?></span>
+                                <?php else: ?>
+                                    <p class="text-lg font-extrabold text-gray-900"><?php echo formatPrice($prod['price']); ?></p>
+                                <?php endif; ?>
+                            </div>
                         </div>
+
                         <div class="mt-4">
                             <?php if ($is_sold_out): ?>
                                 <!-- Globally Sold Out Button for Everyone -->

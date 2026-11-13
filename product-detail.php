@@ -22,6 +22,7 @@ if (!$product) {
         "product_code" => "FG-001",
         "name" => "Organic Cotton Romper",
         "price" => 450.00,
+        "discount_price" => 399.00,
         "description" => "Ultra-soft, breathable 100% organic cotton romper designed with snap buttons for easy diaper changes.",
         "category" => "Rompers",
         "size" => "0-3 Months",
@@ -32,6 +33,7 @@ if (!$product) {
 
 $is_sold_out = (isset($product['is_available']) && $product['is_available'] == 0);
 $pcode = !empty($product['product_code']) ? $product['product_code'] : 'FG-' . str_pad($product['id'], 3, '0', STR_PAD_LEFT);
+$has_discount = !empty($product['discount_price']) && $product['discount_price'] > 0 && $product['discount_price'] < $product['price'];
 
 $pageTitle = $product['name'] . " | Elliana's Boutique";
 include 'includes/header.php';
@@ -39,12 +41,18 @@ include 'includes/header.php';
 
 <div class="max-w-4xl mx-auto px-6 py-12">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-        <!-- Image View (Fixed to display uploaded product image with sold out state) -->
+        <!-- Image View (Fixed to display uploaded product image with sold out & discount states) -->
         <div class="bg-gray-100 h-96 rounded-2xl overflow-hidden flex items-center justify-center border border-gray-200 shadow-sm relative">
             <?php if (!empty($product['image'])): ?>
                 <img src="uploads/<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="w-full h-full object-cover <?php echo $is_sold_out ? 'grayscale' : ''; ?>">
             <?php else: ?>
                 <div class="text-gray-400 text-6xl"><i class="fa-solid fa-shirt"></i></div>
+            <?php endif; ?>
+
+            <?php if ($has_discount && !$is_sold_out): ?>
+                <div class="absolute top-4 left-4 z-10 bg-red-600 text-white text-xs font-extrabold px-3 py-1.5 rounded-full shadow-md uppercase tracking-wider">
+                    Sale Offer
+                </div>
             <?php endif; ?>
 
             <?php if ($is_sold_out): ?>
@@ -62,7 +70,19 @@ include 'includes/header.php';
             </div>
 
             <h1 class="text-3xl font-bold text-gray-900"><?php echo htmlspecialchars($product['name']); ?></h1>
-            <p class="text-2xl font-extrabold text-yellow-600 mt-2"><?php echo formatPrice($product['price']); ?></p>
+            
+            <!-- Dynamic Pricing with Discount Support -->
+            <div class="mt-2 flex items-center gap-3">
+                <?php if ($has_discount): ?>
+                    <p class="text-2xl font-extrabold text-red-600"><?php echo formatPrice($product['discount_price']); ?></p>
+                    <p class="text-lg font-bold text-gray-400 line-through"><?php echo formatPrice($product['price']); ?></p>
+                    <span class="bg-red-50 text-red-600 text-[11px] font-bold px-2 py-0.5 rounded-md border border-red-200">
+                        Save <?php echo formatPrice($product['price'] - $product['discount_price']); ?>
+                    </span>
+                <?php else: ?>
+                    <p class="text-2xl font-extrabold text-yellow-600"><?php echo formatPrice($product['price']); ?></p>
+                <?php endif; ?>
+            </div>
             
             <!-- Display Assigned Size Pre-Setting -->
             <div class="mt-3">

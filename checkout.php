@@ -29,10 +29,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $address = sanitize($_POST['address'] ?? '');
     $city = sanitize($_POST['city'] ?? '');
     $zip = sanitize($_POST['zip'] ?? '');
-    $shipping_method = sanitize($_POST['shipping_method'] ?? 'Standard Shipping');
+    $shipping_method = sanitize($_POST['shipping_method'] ?? 'J&T Express');
     $payment_method = sanitize($_POST['payment_method'] ?? 'GCash');
 
-    // Set shipping fee based on selection
+    // Set shipping fee based on selection (e.g., J&T Express = ₱150)
     $shipping_fee = ($shipping_method === 'J&T Express') ? 150.00 : 80.00;
 
     if (empty($fullname) || empty($email) || empty($address) || empty($city) || empty($zip)) {
@@ -56,16 +56,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$user_id, $total_amount, $shipping_method, $shipping_fee, $payment_method]);
             $order_id = $pdo->lastInsertId();
 
-            // 2. Prepare statements for order items and marking package unavailable globally
+            // 2. Prepare statements for order items and dynamic stock reduction / availability locking
             $itemStmt = $pdo->prepare("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)");
-            $availabilityStmt = $pdo->prepare("UPDATE products SET is_available = 0 WHERE id = ?");
+            
+            // Decrement stock and automatically flip is_available to 0 if stock <= 0
+            $updateStockStmt = $pdo->prepare("
+                UPDATE products 
+                SET stock = stock - ?, 
+                    is_available = CASE WHEN (stock - ?) <= 0 THEN 0 ELSE 1 END 
+                WHERE id = ?
+            ");
             
             foreach ($_SESSION['cart'] as $item) {
                 // Save order item record
                 $itemStmt->execute([$order_id, $item['id'], $item['quantity'], $item['price']]);
                 
-                // Globally lock the package bundle so it shows as sold out for everyone
-                $availabilityStmt->execute([$item['id']]);
+                // Deduct stock and synchronize global availability state
+                $updateStockStmt->execute([$item['quantity'], $item['quantity'], $item['id']]);
             }
 
             // Commit transaction
@@ -209,11 +216,11 @@ include 'includes/header.php';
                         </div>
                         <div class="flex justify-between text-gray-600">
                             <span>Shipping Fee</span>
-                            <span>Calculated at checkout</span>
+                            <span>₱150.00</span>
                         </div>
                         <div class="flex justify-between text-base font-extrabold text-gray-900 pt-2 border-t">
                             <span>Total Payable</span>
-                            <span class="text-yellow-600"><?php echo formatPrice($current_subtotal); ?>+</span>
+                            <span class="text-yellow-600"><?php echo formatPrice($current_subtotal + 150.00); ?></span>
                         </div>
                     </div>
 

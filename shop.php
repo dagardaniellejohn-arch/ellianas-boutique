@@ -114,9 +114,17 @@ include 'includes/header.php';
                     <?php foreach ($products as $prod): 
                         // Check if product is sold out / purchased
                         $is_sold_out = (isset($prod['is_available']) && $prod['is_available'] == 0);
+                        $has_discount = !empty($prod['discount_price']) && $prod['discount_price'] > 0 && $prod['discount_price'] < $prod['price'];
                     ?>
                         <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-2xs hover:shadow-md transition-shadow flex flex-col justify-between relative <?php echo $is_sold_out ? 'opacity-75 bg-gray-50' : ''; ?>">
                             
+                            <?php if ($has_discount && !$is_sold_out): ?>
+                                <!-- Sale Offer Badge Overlay -->
+                                <div class="absolute top-3 left-3 z-10 bg-red-600 text-white text-[11px] font-extrabold px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider">
+                                    Sale
+                                </div>
+                            <?php endif; ?>
+
                             <?php if ($is_sold_out): ?>
                                 <!-- Sold Out Badge Overlay -->
                                 <div class="absolute top-3 right-3 z-10 bg-gray-900 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
@@ -153,7 +161,14 @@ include 'includes/header.php';
                                     <?php endif; ?>
 
                                     <div class="mt-3 flex items-center justify-between">
-                                        <span class="text-lg font-extrabold text-gray-900"><?php echo formatPrice($prod['price']); ?></span>
+                                        <div>
+                                            <?php if ($has_discount): ?>
+                                                <span class="text-base font-extrabold text-red-600"><?php echo formatPrice($prod['discount_price']); ?></span>
+                                                <span class="text-xs text-gray-400 line-through block"><?php echo formatPrice($prod['price']); ?></span>
+                                            <?php else: ?>
+                                                <span class="text-lg font-extrabold text-gray-900"><?php echo formatPrice($prod['price']); ?></span>
+                                            <?php endif; ?>
+                                        </div>
                                         
                                         <?php if ($is_sold_out): ?>
                                             <span class="text-xs font-medium text-gray-500 bg-gray-200 px-2.5 py-1 rounded-lg">Sold Out</span>
