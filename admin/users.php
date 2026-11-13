@@ -79,12 +79,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
     }
 }
 
-// Fetch all registered users
+// Fetch Admins and Regular Customers Separately
 try {
-    $stmt = $pdo->query("SELECT * FROM users ORDER BY created_at DESC");
-    $users = $stmt->fetchAll();
+    $adminStmt = $pdo->query("SELECT * FROM users WHERE role = 'admin' ORDER BY created_at DESC");
+    $admins = $adminStmt->fetchAll();
+
+    $userStmt = $pdo->query("SELECT * FROM users WHERE role = 'user' ORDER BY created_at DESC");
+    $customers = $userStmt->fetchAll();
 } catch (PDOException $e) {
-    $users = [];
+    $admins = [];
+    $customers = [];
 }
 
 $pageTitle = "Manage Users | Elliana's Boutique Admin";
@@ -152,7 +156,7 @@ $pageTitle = "Manage Users | Elliana's Boutique Admin";
                 </div>
             </header>
 
-            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6 space-y-6">
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6 space-y-8">
                 <?php if (!empty($error)): ?>
                     <div class="p-4 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm"><?php echo $error; ?></div>
                 <?php endif; ?>
@@ -160,85 +164,145 @@ $pageTitle = "Manage Users | Elliana's Boutique Admin";
                     <div class="p-4 bg-green-50 border border-green-200 text-green-600 rounded-xl text-sm"><?php echo $success; ?></div>
                 <?php endif; ?>
 
-                <!-- Users Table -->
+                <!-- SECTION 1: ADMINISTRATORS TABLE -->
                 <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                    <div class="p-6 border-b border-gray-200">
-                        <h2 class="text-lg font-bold text-gray-900">Registered Store Customers & Admins</h2>
+                    <div class="p-6 border-b border-gray-200 bg-yellow-50/50 flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <i class="fa-solid fa-shield-halved text-yellow-600"></i> Store Administrators
+                        </h2>
+                        <span class="text-xs font-semibold bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full">Privileged Accounts</span>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
                                     <th class="px-6 py-3">Account ID</th>
-                                    <th class="px-6 py-3">User Details (Name & Email)</th>
+                                    <th class="px-6 py-3">Administrator Details</th>
                                     <th class="px-6 py-3">Role</th>
-                                    <th class="px-6 py-3">Reset Password</th>
+                                    <th class="px-6 py-3">Security (Password Reset)</th>
                                     <th class="px-6 py-3 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 text-sm text-gray-700">
-                                <?php if (!empty($users)): ?>
-                                    <?php foreach ($users as $u): ?>
+                                <?php foreach ($admins as $u): ?>
+                                <tr class="hover:bg-gray-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-mono font-bold text-xs text-yellow-700 align-top">
+                                        <?php echo 'EB-USR-' . str_pad($u['id'], 4, '0', STR_PAD_LEFT); ?>
+                                    </td>
+                                    <td class="px-6 py-4 align-top">
+                                        <form action="users.php" method="POST" class="space-y-2">
+                                            <input type="hidden" name="user_id" value="<?php echo $u['id']; ?>">
+                                            <input type="text" name="fullname" value="<?php echo htmlspecialchars($u['fullname']); ?>" required class="w-full text-xs font-semibold text-gray-900 bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 focus:bg-white">
+                                            <input type="email" name="email" value="<?php echo htmlspecialchars($u['email']); ?>" required class="w-full text-xs text-gray-500 bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 focus:bg-white">
+                                            <button type="submit" name="update_user" class="text-xs bg-yellow-50 text-yellow-700 hover:bg-yellow-100 px-3 py-1.5 rounded-lg font-medium transition-colors">Save Details</button>
+                                        </form>
+                                    </td>
+                                    <td class="px-6 py-4 align-top">
+                                        <!-- Clean Flex Role Update Form -->
+                                        <form action="users.php" method="POST" class="flex items-center gap-2">
+                                            <input type="hidden" name="user_id" value="<?php echo $u['id']; ?>">
+                                            <input type="hidden" name="fullname" value="<?php echo htmlspecialchars($u['fullname']); ?>">
+                                            <input type="hidden" name="email" value="<?php echo htmlspecialchars($u['email']); ?>">
+                                            
+                                            <select name="role" class="text-xs border border-gray-300 rounded-lg px-2.5 py-1.5 bg-white focus:ring-yellow-500 focus:border-yellow-500">
+                                                <option value="user" <?php echo ($u['role'] === 'user') ? 'selected' : ''; ?>>User</option>
+                                                <option value="admin" <?php echo ($u['role'] === 'admin') ? 'selected' : ''; ?>>Admin</option>
+                                            </select>
+                                            
+                                            <button type="submit" name="update_user" class="text-xs bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 px-3 py-1.5 rounded-lg font-semibold transition-colors shadow-xs flex items-center gap-1 whitespace-nowrap">
+                                                <i class="fa-solid fa-check text-[10px]"></i> Apply
+                                            </button>
+                                        </form>
+                                    </td>
+                                    <td class="px-6 py-4 align-top">
+                                        <form action="users.php" method="POST" class="space-y-2" onsubmit="return confirm('Reset password for this admin?');">
+                                            <input type="hidden" name="user_id" value="<?php echo $u['id']; ?>">
+                                            <input type="password" name="new_password" placeholder="New Password" required class="w-full text-xs bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5">
+                                            <input type="password" name="confirm_password" placeholder="Confirm Password" required class="w-full text-xs bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5">
+                                            <button type="submit" name="reset_password" class="text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg font-medium">Reset Password</button>
+                                        </form>
+                                    </td>
+                                    <td class="px-6 py-4 text-right align-top">
+                                        <?php if ($u['id'] !== $_SESSION['user_id']): ?>
+                                            <a href="users.php?action=delete&id=<?php echo $u['id']; ?>" onclick="return confirm('Delete this admin account?');" class="text-red-600 hover:text-red-900 font-medium text-xs">Delete Account</a>
+                                        <?php else: ?>
+                                            <span class="text-gray-400 text-xs italic">Current Admin</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SECTION 2: CUSTOMERS TABLE -->
+                <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <i class="fa-solid fa-users text-gray-600"></i> Registered Customers
+                        </h2>
+                        <span class="text-xs font-semibold bg-gray-200 text-gray-700 px-3 py-1 rounded-full">Customer Accounts</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+                                    <th class="px-6 py-3">Account ID</th>
+                                    <th class="px-6 py-3">Customer Details</th>
+                                    <th class="px-6 py-3">Role</th>
+                                    <th class="px-6 py-3">Security (Password Reset)</th>
+                                    <th class="px-6 py-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 text-sm text-gray-700">
+                                <?php if (!empty($customers)): ?>
+                                    <?php foreach ($customers as $u): ?>
                                     <tr class="hover:bg-gray-50/50 transition-colors">
                                         <td class="px-6 py-4 font-mono font-bold text-xs text-yellow-700 align-top">
                                             <?php echo 'EB-USR-' . str_pad($u['id'], 4, '0', STR_PAD_LEFT); ?>
                                         </td>
-                                        
-                                        <!-- Editable User Details -->
                                         <td class="px-6 py-4 align-top">
                                             <form action="users.php" method="POST" class="space-y-2">
                                                 <input type="hidden" name="user_id" value="<?php echo $u['id']; ?>">
-                                                <div>
-                                                    <input type="text" name="fullname" value="<?php echo htmlspecialchars($u['fullname']); ?>" required class="w-full text-xs font-semibold text-gray-900 bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 focus:bg-white focus:ring-yellow-500 focus:border-yellow-500">
-                                                </div>
-                                                <div>
-                                                    <input type="email" name="email" value="<?php echo htmlspecialchars($u['email']); ?>" required class="w-full text-xs text-gray-500 bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 focus:bg-white focus:ring-yellow-500 focus:border-yellow-500">
-                                                </div>
-                                                <button type="submit" name="update_user" class="text-xs bg-yellow-50 text-yellow-700 hover:bg-yellow-100 px-3 py-1.5 rounded-lg font-medium transition-colors">
-                                                    Save Details
-                                                </button>
+                                                <input type="text" name="fullname" value="<?php echo htmlspecialchars($u['fullname']); ?>" required class="w-full text-xs font-semibold text-gray-900 bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 focus:bg-white">
+                                                <input type="email" name="email" value="<?php echo htmlspecialchars($u['email']); ?>" required class="w-full text-xs text-gray-500 bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 focus:bg-white">
+                                                <button type="submit" name="update_user" class="text-xs bg-yellow-50 text-yellow-700 hover:bg-yellow-100 px-3 py-1.5 rounded-lg font-medium transition-colors">Save Details</button>
                                             </form>
                                         </td>
-
-                                        <!-- Role Update -->
                                         <td class="px-6 py-4 align-top">
-                                            <form action="users.php" method="POST" class="space-y-2">
+                                            <!-- Clean Flex Role Update Form -->
+                                            <form action="users.php" method="POST" class="flex items-center gap-2">
                                                 <input type="hidden" name="user_id" value="<?php echo $u['id']; ?>">
                                                 <input type="hidden" name="fullname" value="<?php echo htmlspecialchars($u['fullname']); ?>">
                                                 <input type="hidden" name="email" value="<?php echo htmlspecialchars($u['email']); ?>">
-                                                <select name="role" class="text-xs border border-gray-300 rounded-lg px-2.5 py-1.5 focus:ring-yellow-500 focus:border-yellow-500 bg-white">
+                                                
+                                                <select name="role" class="text-xs border border-gray-300 rounded-lg px-2.5 py-1.5 bg-white focus:ring-yellow-500 focus:border-yellow-500">
                                                     <option value="user" <?php echo ($u['role'] === 'user') ? 'selected' : ''; ?>>User</option>
                                                     <option value="admin" <?php echo ($u['role'] === 'admin') ? 'selected' : ''; ?>>Admin</option>
                                                 </select>
-                                                <button type="submit" name="update_user" class="block text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 px-3 py-1.5 rounded-lg font-medium transition-colors">Update Role</button>
-                                            </form>
-                                        </td>
-
-                                        <!-- Password Reset Form -->
-                                        <td class="px-6 py-4 align-top">
-                                            <form action="users.php" method="POST" class="space-y-2" onsubmit="return confirm('Are you sure you want to reset this user\'s password?');">
-                                                <input type="hidden" name="user_id" value="<?php echo $u['id']; ?>">
-                                                <input type="password" name="new_password" placeholder="New Password" required class="w-full text-xs bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 focus:bg-white">
-                                                <input type="password" name="confirm_password" placeholder="Confirm Password" required class="w-full text-xs bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 focus:bg-white">
-                                                <button type="submit" name="reset_password" class="text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg font-medium transition-colors">
-                                                    Reset Password
+                                                
+                                                <button type="submit" name="update_user" class="text-xs bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 px-3 py-1.5 rounded-lg font-semibold transition-colors shadow-xs flex items-center gap-1 whitespace-nowrap">
+                                                    <i class="fa-solid fa-check text-[10px]"></i> Apply
                                                 </button>
                                             </form>
                                         </td>
-
-                                        <!-- Delete Action -->
+                                        <td class="px-6 py-4 align-top">
+                                            <form action="users.php" method="POST" class="space-y-2" onsubmit="return confirm('Reset password for this customer?');">
+                                                <input type="hidden" name="user_id" value="<?php echo $u['id']; ?>">
+                                                <input type="password" name="new_password" placeholder="New Password" required class="w-full text-xs bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5">
+                                                <input type="password" name="confirm_password" placeholder="Confirm Password" required class="w-full text-xs bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5">
+                                                <button type="submit" name="reset_password" class="text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg font-medium">Reset Password</button>
+                                            </form>
+                                        </td>
                                         <td class="px-6 py-4 text-right align-top">
-                                            <?php if ($u['id'] !== $_SESSION['user_id']): ?>
-                                                <a href="users.php?action=delete&id=<?php echo $u['id']; ?>" onclick="return confirm('Are you sure you want to delete this user?');" class="inline-block text-red-600 hover:text-red-900 font-medium text-xs pt-1">Delete Account</a>
-                                            <?php else: ?>
-                                                <span class="block text-gray-400 text-xs italic pt-1">Current Admin</span>
-                                            <?php endif; ?>
+                                            <a href="users.php?action=delete&id=<?php echo $u['id']; ?>" onclick="return confirm('Delete this customer account?');" class="text-red-600 hover:text-red-900 font-medium text-xs">Delete Account</a>
                                         </td>
                                     </tr>
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="5" class="px-6 py-8 text-center text-gray-500">No users found.</td>
+                                        <td colspan="5" class="px-6 py-8 text-center text-gray-500">No customers found.</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
