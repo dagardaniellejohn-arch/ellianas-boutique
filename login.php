@@ -51,7 +51,7 @@ include 'includes/header.php';
             <h1 class="text-2xl font-bold text-gray-900">Welcome Back</h1>
             <p class="text-sm text-gray-500 mt-1">Log in to your Elliana's Boutique account</p>
         </div>
-
+        
         <?php if (!empty($error)): ?>
             <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm">
                 <?php echo $error; ?>
