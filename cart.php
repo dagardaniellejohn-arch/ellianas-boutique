@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
                     'id'             => $prod['id'],
                     'name'           => $prod['name'],
                     'price'          => $prod['price'],
-                    'discount_price' => $prod['discount_price'] ?? null, // <-- Saved for checkout
+                    'discount_price' => $prod['discount_price'] ?? null,
                     'size'           => $size,
                     'quantity'       => 1,
                     'image'          => $prod['image'] ?? ''
@@ -79,8 +79,9 @@ include 'includes/header.php';
                     <tr class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold border-b border-gray-200">
                         <th class="px-6 py-4">Product</th>
                         <th class="px-6 py-4">Size</th>
-                        <th class="px-6 py-4">Price</th>
+                        <th class="px-6 py-4">Unit Price</th>
                         <th class="px-6 py-4">Quantity</th>
+                        <th class="px-6 py-4">Item Total</th>
                         <th class="px-6 py-4 text-right">Action</th>
                     </tr>
                 </thead>
@@ -107,6 +108,8 @@ include 'includes/header.php';
                             <span><?php echo htmlspecialchars($item['name']); ?></span>
                         </td>
                         <td class="px-6 py-4 text-gray-500"><?php echo htmlspecialchars($item['size']); ?></td>
+                        
+                        <!-- Unit Price Display -->
                         <td class="px-6 py-4 text-gray-900 font-semibold">
                             <?php if ($has_item_discount): ?>
                                 <span class="text-red-600 block"><?php echo formatPrice($active_price); ?></span>
@@ -115,7 +118,14 @@ include 'includes/header.php';
                                 <?php echo formatPrice($item['price']); ?>
                             <?php endif; ?>
                         </td>
+
                         <td class="px-6 py-4 text-gray-600"><?php echo $item['quantity']; ?></td>
+
+                        <!-- Row Item Total Display -->
+                        <td class="px-6 py-4 font-bold text-gray-900">
+                            <?php echo formatPrice($itemTotal); ?>
+                        </td>
+
                         <td class="px-6 py-4 text-right">
                             <a href="cart.php?action=remove&key=<?php echo urlencode($key); ?>" class="text-red-600 hover:text-red-900 text-sm font-medium">Remove</a>
                         </td>
