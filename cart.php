@@ -6,7 +6,6 @@ require_once 'includes/functions.php';
 
 // REQUIRE LOGIN BEFORE BUYING/ADDING TO CART
 if (!isset($_SESSION['user_id'])) {
-    // Optional: save a message or redirect back after login
     redirect('login.php');
 }
 
@@ -15,12 +14,10 @@ if (!isset($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
 }
 
-// ... rest of your cart code continues below ...
-
 // Handle adding product to cart from product-detail.php
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
     $product_id = (int)$_POST['product_id'];
-    $size = sanitize($_POST['size']);
+    $size = sanitize($_POST['size'] ?? 'Standard');
     
     // Create a unique cart key combining ID and size
     $cart_key = $product_id . '_' . $size;
@@ -28,31 +25,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
     if (isset($_SESSION['cart'][$cart_key])) {
         $_SESSION['cart'][$cart_key]['quantity'] += 1;
     } else {
-        // Fetch product details for the cart
+        // Fetch product details for the cart (including discount_price)
         try {
-            $stmt = $pdo->prepare("SELECT * FROM products WHERE id = ?");
+            $stmt = $pdo->prepare("SELECT id, name, price, discount_price, image FROM products WHERE id = ?");
             $stmt->execute([$product_id]);
             $prod = $stmt->fetch();
-            
+
             if ($prod) {
                 $_SESSION['cart'][$cart_key] = [
-                    'id' => $prod['id'],
-                    'name' => $prod['name'],
-                    'price' => $prod['price'],
-                    'size' => $size,
-                    'quantity' => 1,
-                    'image' => $prod['image'] ?? ''
+                    'id'             => $prod['id'],
+                    'name'           => $prod['name'],
+                    'price'          => $prod['price'],
+                    'discount_price' => $prod['discount_price'] ?? null, // <-- Saved for checkout
+                    'size'           => $size,
+                    'quantity'       => 1,
+                    'image'          => $prod['image'] ?? ''
                 ];
             }
         } catch (PDOException $e) {
             // Fallback mock item if DB fails
             $_SESSION['cart'][$cart_key] = [
-                'id' => $product_id,
-                'name' => 'Organic Cotton Romper',
-                'price' => 24.00,
-                'size' => $size,
-                'quantity' => 1,
-                'image' => ''
+                'id'             => $product_id,
+                'name'           => 'Organic Cotton Romper',
+                'price'          => 24.00,
+                'discount_price' => null,
+                'size'           => $size,
+                'quantity'       => 1,
+                'image'          => ''
             ];
         }
     }
@@ -85,11 +84,15 @@ include 'includes/header.php';
                         <th class="px-6 py-4 text-right">Action</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200 text-sm text-gray-700">
-                    <?php 
+                <tbody class="divide-y divide-gray-200 text-sm">
+                    <?php
                     $subtotal = 0;
-                    foreach ($_SESSION['cart'] as $key => $item): 
-                        $itemTotal = $item['price'] * $item['quantity'];
+                    foreach ($_SESSION['cart'] as $key => $item):
+                        // Check if item has a valid active discount
+                        $has_item_discount = !empty($item['discount_price']) && $item['discount_price'] > 0 && $item['discount_price'] < $item['price'];
+                        $active_price = $has_item_discount ? $item['discount_price'] : $item['price'];
+                        
+                        $itemTotal = $active_price * $item['quantity'];
                         $subtotal += $itemTotal;
                     ?>
                     <tr>
@@ -104,7 +107,14 @@ include 'includes/header.php';
                             <span><?php echo htmlspecialchars($item['name']); ?></span>
                         </td>
                         <td class="px-6 py-4 text-gray-500"><?php echo htmlspecialchars($item['size']); ?></td>
-                        <td class="px-6 py-4 text-gray-900 font-semibold"><?php echo formatPrice($item['price']); ?></td>
+                        <td class="px-6 py-4 text-gray-900 font-semibold">
+                            <?php if ($has_item_discount): ?>
+                                <span class="text-red-600 block"><?php echo formatPrice($active_price); ?></span>
+                                <span class="text-xs text-gray-400 line-through"><?php echo formatPrice($item['price']); ?></span>
+                            <?php else: ?>
+                                <?php echo formatPrice($item['price']); ?>
+                            <?php endif; ?>
+                        </td>
                         <td class="px-6 py-4 text-gray-600"><?php echo $item['quantity']; ?></td>
                         <td class="px-6 py-4 text-right">
                             <a href="cart.php?action=remove&key=<?php echo urlencode($key); ?>" class="text-red-600 hover:text-red-900 text-sm font-medium">Remove</a>

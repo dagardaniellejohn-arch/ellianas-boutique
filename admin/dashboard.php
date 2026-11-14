@@ -4,14 +4,19 @@ session_start();
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
-// Security check: Verify admin role
+// Security check: Verify admin role correctly
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     redirect('../login.php');
 }
 
-// Handle clearing notifications
+// Handle clearing notifications using Order ID threshold (immune to time drift)
 if (isset($_GET['action']) && $_GET['action'] === 'clear_notifications') {
-    $_SESSION['notifications_cleared_time'] = time();
+    try {
+        $maxStmt = $pdo->query("SELECT MAX(id) FROM orders");
+        $_SESSION['cleared_order_id'] = (int)$maxStmt->fetchColumn();
+    } catch (PDOException $e) {
+        $_SESSION['cleared_order_id'] = 0;
+    }
     redirect('dashboard.php');
 }
 
@@ -26,7 +31,8 @@ try {
 
     // Fetch recent purchased orders for the admin notification alert feed
     $orderStmt = $pdo->query("SELECT o.*, u.fullname FROM orders o JOIN users u ON o.user_id = u.id ORDER BY o.id DESC LIMIT 5");
-    $recent_orders = $orderStmt->fetchAll();
+    $recent_orders = $orderStmt->fetchAll(PDO::FETCH_ASSOC);
+
 } catch (PDOException $e) {
     $userCount = 0;
     $productCount = 0;
@@ -35,14 +41,13 @@ try {
     $recent_orders = [];
 }
 
-// If notifications were cleared, check if we should hide them or filter out orders placed before clear time
-// (Alternatively, if you want a clean wipe of the visible list until new orders arrive, we check timestamps)
-if (isset($_SESSION['notifications_cleared_time'])) {
-    $cleared_time = $_SESSION['notifications_cleared_time'];
-    // Filter out orders that were created before the clear action
-    $recent_orders = array_filter($recent_orders, function($order) use ($cleared_time) {
-        return strtotime($order['created_at']) > $cleared_time;
+// Filter out orders that were placed at or before the clear action using Order IDs
+if (isset($_SESSION['cleared_order_id'])) {
+    $cleared_id = $_SESSION['cleared_order_id'];
+    $recent_orders = array_filter($recent_orders, function ($order) use ($cleared_id) {
+        return (int)$order['id'] > $cleared_id;
     });
+    $recent_orders = array_values($recent_orders); // Reindex array keys
 }
 
 $pageTitle = "Admin Dashboard | Elliana's Boutique";
@@ -59,7 +64,6 @@ $pageTitle = "Admin Dashboard | Elliana's Boutique";
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-gray-50 font-sans antialiased">
-
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar Navigation -->
         <aside class="hidden md:flex md:flex-shrink-0">
@@ -76,7 +80,6 @@ $pageTitle = "Admin Dashboard | Elliana's Boutique";
                         </div>
                     </a>
                 </div>
-
                 <div class="flex flex-col flex-grow px-4 py-6 space-y-2">
                     <a href="dashboard.php" class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg bg-yellow-500 text-white shadow-xs">
                         <i class="fa-solid fa-house mr-3"></i> Dashboard
@@ -143,7 +146,6 @@ $pageTitle = "Admin Dashboard | Elliana's Boutique";
                             </div>
                         </div>
                     </div>
-
                     <!-- Orders Metric -->
                     <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                         <div class="flex items-center justify-between">
@@ -156,7 +158,6 @@ $pageTitle = "Admin Dashboard | Elliana's Boutique";
                             </div>
                         </div>
                     </div>
-
                     <!-- Users Metric -->
                     <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                         <div class="flex items-center justify-between">
@@ -169,7 +170,6 @@ $pageTitle = "Admin Dashboard | Elliana's Boutique";
                             </div>
                         </div>
                     </div>
-
                     <!-- Revenue Metric -->
                     <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                         <div class="flex items-center justify-between">
@@ -210,7 +210,7 @@ $pageTitle = "Admin Dashboard | Elliana's Boutique";
                                         </div>
                                         <div>
                                             <p class="font-bold text-gray-900">New Order #<?php echo $order['id']; ?> placed by <span class="text-yellow-600"><?php echo htmlspecialchars($order['fullname']); ?></span></p>
-                                            <p class="text-xs text-gray-500">Shipping via <?php echo htmlspecialchars($order['shipping_method']); ?> • <?php echo formatPrice($order['total_amount']); ?></p>
+                                            <p class="text-xs text-gray-500">Shipping via <?php echo htmlspecialchars($order['shipping_method']); ?> | <?php echo formatPrice($order['total_amount']); ?></p>
                                         </div>
                                     </div>
                                     <span class="text-xs font-semibold px-2.5 py-1 bg-green-50 text-green-700 rounded-lg"><?php echo htmlspecialchars($order['status']); ?></span>
@@ -224,7 +224,6 @@ $pageTitle = "Admin Dashboard | Elliana's Boutique";
                         </div>
                     <?php endif; ?>
                 </div>
-
             </main>
         </div>
     </div>

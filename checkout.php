@@ -39,10 +39,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "Please fill in all shipping details.";
     } else {
         try {
-            // Calculate items subtotal
+            // Calculate items subtotal factoring active sale/discount prices
             $subtotal = 0;
             foreach ($_SESSION['cart'] as $item) {
-                $subtotal += $item['price'] * $item['quantity'];
+                $item_price = (!empty($item['discount_price']) && $item['discount_price'] > 0 && $item['discount_price'] < $item['price']) ? $item['discount_price'] : $item['price'];
+                $subtotal += $item_price * $item['quantity'];
             }
             $total_amount = $subtotal + $shipping_fee;
 
@@ -51,18 +52,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Begin transaction
             $pdo->beginTransaction();
 
-            // ----------------------------------------------------
-            // PUT IT HERE: Replace your old INSERT statement with this:
-            // ----------------------------------------------------
+            // 1. Insert into orders table with delivery address
             $stmt = $pdo->prepare("INSERT INTO orders (user_id, total_amount, shipping_method, shipping_fee, payment_method, address, city, zip, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Purchased', NOW())");
             $stmt->execute([$user_id, $total_amount, $shipping_method, $shipping_fee, $payment_method, $address, $city, $zip]);
             $order_id = $pdo->lastInsertId();
-            // ----------------------------------------------------
 
-            // 2. Prepare statements for order items and dynamic stock reduction / availability locking
+            // 2. Prepare statements for order items and stock reduction
             $itemStmt = $pdo->prepare("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)");
             
-            // Decrement stock and automatically flip is_available to 0 if stock <= 0
             $updateStockStmt = $pdo->prepare("
                 UPDATE products 
                 SET stock = stock - ?, 
@@ -71,11 +68,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ");
             
             foreach ($_SESSION['cart'] as $item) {
+                $productId = $item['id'] ?? $item['product_id'] ?? 0;
+                $quantity = (int)($item['quantity'] ?? 1);
+                // Save the actual discounted transaction price paid if on sale
+                $effective_price = (!empty($item['discount_price']) && $item['discount_price'] > 0 && $item['discount_price'] < $item['price']) ? $item['discount_price'] : $item['price'];
+
                 // Save order item record
-                $itemStmt->execute([$order_id, $item['id'], $item['quantity'], $item['price']]);
+                $itemStmt->execute([$order_id, $productId, $quantity, $effective_price]);
                 
                 // Deduct stock and synchronize global availability state
-                $updateStockStmt->execute([$item['quantity'], $item['quantity'], $item['id']]);
+                $updateStockStmt->execute([$quantity, $quantity, $productId]);
             }
 
             // Commit transaction
@@ -92,10 +94,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Calculate subtotal for review display
+// Calculate subtotal for review display factoring sale discounts
 $current_subtotal = 0;
 foreach ($_SESSION['cart'] as $item) {
-    $current_subtotal += $item['price'] * $item['quantity'];
+    $item_price = (!empty($item['discount_price']) && $item['discount_price'] > 0 && $item['discount_price'] < $item['price']) ? $item['discount_price'] : $item['price'];
+    $current_subtotal += $item_price * $item['quantity'];
 }
 
 $pageTitle = "Checkout | Elliana's Boutique";
@@ -203,11 +206,24 @@ include 'includes/header.php';
                 <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm sticky top-6 space-y-4">
                     <h2 class="text-lg font-bold text-gray-900 border-b pb-3">Order Summary</h2>
                     
-                    <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
-                        <?php foreach ($_SESSION['cart'] as $item): ?>
-                            <div class="flex justify-between text-xs text-gray-600">
-                                <span><?php echo htmlspecialchars($item['name']); ?> (<?php echo $item['size']; ?>) x <?php echo $item['quantity']; ?></span>
-                                <span class="font-medium text-gray-900"><?php echo formatPrice($item['price'] * $item['quantity']); ?></span>
+                    <div class="space-y-3 max-h-56 overflow-y-auto pr-1">
+                        <?php foreach ($_SESSION['cart'] as $item): 
+                            $has_item_discount = !empty($item['discount_price']) && $item['discount_price'] > 0 && $item['discount_price'] < $item['price'];
+                            $active_price = $has_item_discount ? $item['discount_price'] : $item['price'];
+                        ?>
+                            <div class="flex justify-between items-start text-xs text-gray-600 border-b border-gray-50 pb-2">
+                                <div>
+                                    <span class="font-bold text-gray-900 block"><?php echo htmlspecialchars($item['name']); ?></span>
+                                    <span class="text-[11px] text-gray-400">Size: <?php echo htmlspecialchars($item['size'] ?? 'Standard'); ?> × <?php echo $item['quantity']; ?></span>
+                                </div>
+                                <div class="text-right">
+                                    <?php if ($has_item_discount): ?>
+                                        <span class="font-extrabold text-red-600 block"><?php echo formatPrice($active_price * $item['quantity']); ?></span>
+                                        <span class="text-[10px] text-gray-400 line-through"><?php echo formatPrice($item['price'] * $item['quantity']); ?></span>
+                                    <?php else: ?>
+                                        <span class="font-bold text-gray-900"><?php echo formatPrice($active_price * $item['quantity']); ?></span>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -230,6 +246,11 @@ include 'includes/header.php';
                     <button type="submit" class="w-full py-3.5 bg-yellow-500 text-white font-medium rounded-xl shadow hover:bg-yellow-600 transition-colors mt-4">
                         Place Order Now
                     </button>
+
+                    <!-- Back Out / Return to Shop Button -->
+                    <a href="shop.php" class="block text-center w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-xs transition-colors mt-2">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> Back to Shop / Cancel
+                    </a>
                 </div>
             </div>
         </form>

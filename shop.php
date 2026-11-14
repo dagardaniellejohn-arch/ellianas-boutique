@@ -112,8 +112,9 @@ include 'includes/header.php';
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 <?php if (!empty($products)): ?>
                     <?php foreach ($products as $prod): 
-                        // Check if product is sold out / purchased
-                        $is_sold_out = (isset($prod['is_available']) && $prod['is_available'] == 0);
+                        // Robust Sold Out check: Checks both stock quantity and availability flag
+                        $stock_qty = isset($prod['stock']) ? (int)$prod['stock'] : 10;
+                        $is_sold_out = ($stock_qty <= 0 || (isset($prod['is_available']) && $prod['is_available'] == 0));
                         $has_discount = !empty($prod['discount_price']) && $prod['discount_price'] > 0 && $prod['discount_price'] < $prod['price'];
                     ?>
                         <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-2xs hover:shadow-md transition-shadow flex flex-col justify-between relative <?php echo $is_sold_out ? 'opacity-75 bg-gray-50' : ''; ?>">
