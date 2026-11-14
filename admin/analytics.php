@@ -11,13 +11,18 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
 // Fetch analytics aggregated data aligned with products (Stocks, Categories, Sizes, Age Ranges)
 try {
+    $currentYear = date('Y');
+
     // 1. Line Graph: Monthly Revenue for the current year
-    $revenueStmt = $pdo->query("
+    $revenueStmt = $pdo->prepare("
         SELECT MONTH(created_at) as month, SUM(total_amount) as monthly_total 
         FROM orders 
+        WHERE YEAR(created_at) = ?
         GROUP BY MONTH(created_at) 
         ORDER BY month ASC
     ");
+    $revenueStmt->execute([$currentYear]);
+    
     $monthlyData = array_fill(1, 12, 0);
     $totalAnnualRevenue = 0;
     while ($row = $revenueStmt->fetch()) {
@@ -44,23 +49,23 @@ try {
     ");
     $ageData = $ageStmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
-    // 4. Bar Graph: Top Selling Products (Including Size and Stock details)
-    $topProductsStmt = $pdo->query("
-        SELECT p.name, p.size, p.stock, SUM(oi.quantity) as total_sold
+    // 4. Bar Graph: Order Frequency by Age Range / Size
+    $ageOrdersStmt = $pdo->query("
+        SELECT p.size as age_range, SUM(oi.quantity) as total_sold
         FROM order_items oi
         JOIN products p ON oi.product_id = p.id
-        GROUP BY p.id, p.name, p.size, p.stock
+        WHERE p.size IS NOT NULL AND p.size != ''
+        GROUP BY p.size
         ORDER BY total_sold DESC
-        LIMIT 5
     ");
-    $topProducts = $topProductsStmt->fetchAll(PDO::FETCH_ASSOC);
+    $ageOrdersData = $ageOrdersStmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
     // 5. Stock Levels Overview across Inventory
     $stockStmt = $pdo->query("
         SELECT name, stock, size 
         FROM products 
         ORDER BY stock ASC 
-        LIMIT 5
+        LIMIT 6
     ");
     $lowStockProducts = $stockStmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -72,7 +77,7 @@ try {
     $monthlyData = array_fill(1, 12, 0);
     $categoryData = [];
     $ageData = [];
-    $topProducts = [];
+    $ageOrdersData = [];
     $lowStockProducts = [];
     $totalAnnualRevenue = 0;
     $totalActiveProducts = 0;
@@ -161,7 +166,7 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
                     <!-- Card 1: Annual Revenue -->
                     <div class="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-2xs flex items-center justify-between">
                         <div>
-                            <p class="text-xs font-bold uppercase tracking-wider text-gray-400">Total Revenue Generated</p>
+                            <p class="text-xs font-bold uppercase tracking-wider text-gray-400">YTD Revenue (<?php echo $currentYear; ?>)</p>
                             <h3 class="text-2xl font-extrabold text-gray-900 mt-1"><?php echo formatPrice($totalAnnualRevenue); ?></h3>
                             <span class="inline-flex items-center text-[11px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full mt-2">
                                 <i class="fa-solid fa-arrow-trend-up mr-1"></i> Active YTD Flow
@@ -210,7 +215,7 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
                                 <h3 class="font-bold text-gray-900 text-base flex items-center gap-2">
                                     <i class="fa-solid fa-chart-line text-yellow-600"></i> Monthly Revenue Overview
                                 </h3>
-                                <p class="text-xs text-gray-400 mt-0.5">Tracking actual earnings performance throughout the year.</p>
+                                <p class="text-xs text-gray-400 mt-0.5">Tracking actual earnings performance throughout <?php echo $currentYear; ?>.</p>
                             </div>
                         </div>
                         <div class="relative h-72">
@@ -234,7 +239,7 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
                     </div>
                 </div>
 
-                <!-- Row 2: Age Range Distribution & Top Selling Bar Chart -->
+                <!-- Row 2: Age Range Distribution & Age Range Order Demand Bar Chart -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <!-- Doughnut Chart: Target Age Range / Size Breakdown -->
                     <div class="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-2xs">
@@ -251,18 +256,18 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
                         </div>
                     </div>
 
-                    <!-- Top Selling Bar Chart -->
+                    <!-- Bar Chart: Order Demand by Age Range -->
                     <div class="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-2xs">
                         <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
                             <div>
                                 <h3 class="font-bold text-gray-900 text-base flex items-center gap-2">
-                                    <i class="fa-solid fa-chart-column text-yellow-600"></i> Top-Selling Products Demand
+                                    <i class="fa-solid fa-chart-column text-yellow-600"></i> Order Demand by Age Range
                                 </h3>
-                                <p class="text-xs text-gray-400 mt-0.5">Most purchased product models factoring sizes.</p>
+                                <p class="text-xs text-gray-400 mt-0.5">Total units purchased grouped by apparel size / age range.</p>
                             </div>
                         </div>
                         <div class="relative h-72">
-                            <canvas id="productChart"></canvas>
+                            <canvas id="ageDemandChart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -275,15 +280,15 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
                         </h3>
                         <a href="products.php" class="text-xs font-bold text-yellow-600 hover:underline">Manage Inventory &rarr;</a>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <?php if (!empty($lowStockProducts)): ?>
                             <?php foreach ($lowStockProducts as $item): ?>
                                 <div class="flex items-center justify-between p-3.5 bg-gray-50/80 rounded-xl border border-gray-100 text-xs">
-                                    <div>
-                                        <span class="font-bold text-gray-900 block truncate max-w-[130px]" title="<?php echo htmlspecialchars($item['name']); ?>"><?php echo htmlspecialchars($item['name']); ?></span>
+                                    <div class="pr-2">
+                                        <span class="font-bold text-gray-900 block truncate max-w-[180px]" title="<?php echo htmlspecialchars($item['name']); ?>"><?php echo htmlspecialchars($item['name']); ?></span>
                                         <span class="text-gray-400 text-[11px]">Size: <?php echo htmlspecialchars($item['size'] ?? 'Standard'); ?></span>
                                     </div>
-                                    <span class="px-2.5 py-1 font-extrabold rounded-lg <?php echo ($item['stock'] <= 5) ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-yellow-50 text-yellow-700 border border-yellow-200'; ?>">
+                                    <span class="px-2.5 py-1 font-extrabold rounded-lg whitespace-nowrap <?php echo ($item['stock'] <= 5) ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-yellow-50 text-yellow-700 border border-yellow-200'; ?>">
                                         <?php echo (int)$item['stock']; ?> left
                                     </span>
                                 </div>
@@ -357,13 +362,16 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
 
         // 2. Doughnut Chart: Categories Distribution
         const catCtx = document.getElementById('categoryChart').getContext('2d');
+        const catLabels = <?php echo json_encode(array_keys($categoryData)); ?>;
+        const catValues = <?php echo json_encode(array_values($categoryData)); ?>;
+        
         new Chart(catCtx, {
             type: 'doughnut',
             data: {
-                labels: <?php echo json_encode(array_keys($categoryData)); ?>,
+                labels: catLabels.length > 0 ? catLabels : ['No Categories Found'],
                 datasets: [{
-                    data: <?php echo json_encode(array_values($categoryData)); ?>,
-                    backgroundColor: ['#eab308', '#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899'],
+                    data: catValues.length > 0 ? catValues : [1],
+                    backgroundColor: catValues.length > 0 ? ['#eab308', '#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899'] : ['#e5e7eb'],
                     borderWidth: 3,
                     borderColor: '#ffffff',
                     hoverOffset: 4
@@ -380,7 +388,8 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
                     tooltip: {
                         backgroundColor: '#111827',
                         padding: 12,
-                        cornerRadius: 10
+                        cornerRadius: 10,
+                        enabled: catValues.length > 0
                     }
                 },
                 cutout: '70%'
@@ -389,13 +398,16 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
 
         // 3. Doughnut Chart: Age Range Distribution
         const ageCtx = document.getElementById('ageRangeChart').getContext('2d');
+        const ageLabels = <?php echo json_encode(array_keys($ageData)); ?>;
+        const ageValues = <?php echo json_encode(array_values($ageData)); ?>;
+
         new Chart(ageCtx, {
             type: 'doughnut',
             data: {
-                labels: <?php echo json_encode(array_keys($ageData)); ?>,
+                labels: ageLabels.length > 0 ? ageLabels : ['No Sizes Found'],
                 datasets: [{
-                    data: <?php echo json_encode(array_values($ageData)); ?>,
-                    backgroundColor: ['#f59e0b', '#06b6d4', '#84cc16', '#a855f7', '#f43f5e', '#6366f1'],
+                    data: ageValues.length > 0 ? ageValues : [1],
+                    backgroundColor: ageValues.length > 0 ? ['#f59e0b', '#06b6d4', '#84cc16', '#a855f7', '#f43f5e', '#6366f1'] : ['#e5e7eb'],
                     borderWidth: 3,
                     borderColor: '#ffffff',
                     hoverOffset: 4
@@ -412,24 +424,20 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
                     tooltip: {
                         backgroundColor: '#111827',
                         padding: 12,
-                        cornerRadius: 10
+                        cornerRadius: 10,
+                        enabled: ageValues.length > 0
                     }
                 },
                 cutout: '70%'
             }
         });
 
-        // 4. Bar Chart: Top Products Demand with Legend Box Mapping
-        // 3. Bar Chart: Top Products Demand with Legend Box Mapping
-        const productCtx = document.getElementById('productChart').getContext('2d');
-        const topProductsRaw = <?php echo json_encode($topProducts); ?>;
-        
-        // Use clean X-axis labels to prevent text overlap
-        const productLabels = topProductsRaw.map((p, index) => 'Product ' + (index + 1));
-        const fullProductNames = topProductsRaw.map(p => p.name + ' (' + (p.size || 'Standard') + ')'); // Fixed .app to .map
-        const productSales = topProductsRaw.map(p => p.total_sold);
+        // 4. Bar Chart: Order Demand by Age Range
+        const ageDemandCtx = document.getElementById('ageDemandChart').getContext('2d');
+        const ageDemandLabels = <?php echo json_encode(array_keys($ageOrdersData)); ?>;
+        const ageDemandValues = <?php echo json_encode(array_values($ageOrdersData)); ?>;
 
-        const productColors = [
+        const ageColors = [
             'rgba(234, 179, 8, 0.85)',
             'rgba(59, 130, 246, 0.85)',
             'rgba(16, 185, 129, 0.85)',
@@ -437,7 +445,7 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
             'rgba(249, 115, 22, 0.85)'
         ];
 
-        const productBorderColors = [
+        const ageBorderColors = [
             'rgb(202, 138, 4)',
             'rgb(37, 99, 235)',
             'rgb(5, 150, 105)',
@@ -445,15 +453,15 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
             'rgb(234, 88, 12)'
         ];
 
-        new Chart(productCtx, {
+        new Chart(ageDemandCtx, {
             type: 'bar',
             data: {
-                labels: productLabels,
+                labels: ageDemandLabels.length > 0 ? ageDemandLabels : ['No Sales Recorded'],
                 datasets: [{
                     label: 'Units Sold',
-                    data: productSales,
-                    backgroundColor: productColors,
-                    borderColor: productBorderColors,
+                    data: ageDemandValues.length > 0 ? ageDemandValues : [0],
+                    backgroundColor: ageColors.slice(0, ageDemandValues.length),
+                    borderColor: ageBorderColors.slice(0, ageDemandValues.length),
                     borderWidth: 1,
                     borderRadius: 8
                 }]
@@ -462,33 +470,12 @@ $pageTitle = "Store Analytics | Elliana's Boutique Admin";
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { 
-                    legend: {
-                        display: true,
-                        position: 'bottom',
-                        labels: {
-                            boxWidth: 12,
-                            padding: 12,
-                            font: { size: 11, weight: '600' },
-                            generateLabels: function(chart) {
-                                return fullProductNames.map((name, index) => ({
-                                    text: 'P' + (index + 1) + ': ' + name,
-                                    fillStyle: productColors[index % productColors.length],
-                                    strokeStyle: productBorderColors[index % productBorderColors.length],
-                                    lineWidth: 1,
-                                    hidden: false,
-                                    index: index
-                                }));
-                            }
-                        }
-                    },
+                    legend: { display: false },
                     tooltip: {
                         backgroundColor: '#111827',
                         padding: 12,
                         cornerRadius: 10,
                         callbacks: {
-                            title: function(context) {
-                                return fullProductNames[context[0].dataIndex];
-                            },
                             label: function(context) {
                                 return ' Units Sold: ' + context.raw;
                             }
